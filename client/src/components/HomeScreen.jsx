@@ -14,7 +14,10 @@ export function HomeScreen() {
       <InstallPrompt />
       <header className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-emerald-800">समूह</p>
+          <Link to="/" className="text-sm font-semibold text-emerald-800">
+            ← Village
+          </Link>
+          <p className="mt-1 text-sm font-semibold text-emerald-800">समूह</p>
           <h1 className="text-3xl font-black text-emerald-950">
             {session?.groupName}
           </h1>
@@ -54,16 +57,16 @@ export function HomeScreen() {
       </section>
 
       <section className="grid grid-cols-2 gap-3">
-        <HomeTile href="/entry?type=savings" color="bg-emerald-600" emoji="💰" label="जमा" />
-        <HomeTile href="/entry?type=loan_out" color="bg-orange-600" emoji="🤲" label="कर्ज़" />
+        <HomeTile href="/samooh/entry?type=savings" color="bg-emerald-600" emoji="💰" label="जमा" />
+        <HomeTile href="/samooh/entry?type=loan_out" color="bg-orange-600" emoji="🤲" label="कर्ज़" />
         <HomeTile
-          href="/group"
+          href="/samooh/group"
           color="bg-sky-700"
           emoji="👥"
           label={`सदस्य (${members.length})`}
         />
         <HomeTile
-          href="/history"
+          href="/samooh/history"
           color="bg-stone-700"
           emoji="📒"
           label={pending ? `खाता (${pending} बाकी)` : "खाता"}

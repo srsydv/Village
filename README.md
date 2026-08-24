@@ -1,49 +1,41 @@
-# Village — समूह (Samooh)
+# Village
 
-Offline-first digital ledger for village Self-Help Groups (SHGs). This is a **transparent notebook**, not a bank, wallet, or payments product.
+Rural toolkit with two apps:
 
-A facilitator can create a group, add members with icons, record weekly savings and loans, hear Hindi audio confirmation, and keep working when the network drops. Entries save on the phone and sync when coverage returns.
+- **समूह (Samooh)** — SHG digital ledger (savings, loans, Hindi confirmations). A notebook, not a bank.
+- **ग्रामसेवा (GramSeva)** — village trades directory and micro-job board, with offline save and SMS / share to neighbors.
 
-**Full guidebook:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and pick one. **Full guidebook:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 
 ## User guidebook
 
-समूह records cash that already changed hands in the meeting. It does not send money.
+### Village home
 
-### Create or join a group
+Two large tiles: **समूह** and **ग्रामसेवा**. Each has its own PIN and 6-character code.
 
-1. Open the app at [http://127.0.0.1:5173](http://127.0.0.1:5173) (or your deployed URL).
-2. **नया समूह** — enter group name, optional village, and a 4-digit PIN. Tap **समूह बनाएं**. Note the 6-character **group code** on the home screen.
-3. **जुड़ें** (second phone) — enter that code and the same PIN, then **अंदर जाएं**.
+### समूह (savings group)
 
-Share the code and PIN only with people who already keep the paper register.
+1. **नया समूह** — name, optional village, 4-digit PIN → **समूह बनाएं**.
+2. **समूह** → **+ जोड़ें** — member name + icon (**सहेजें** needs internet).
+3. **जमा** — type (जमा / कर्ज़ दिया / कर्ज़ चुकाया), keypad, member, **सहेजें और सुनें**.
+4. **घर** shows cash on hand. **खाता** is the ledger. Yellow badge = unsynced (works offline).
 
-### Weekly meeting
+### ग्रामसेवा (local services)
 
-1. **समूह** → **+ जोड़ें** — name + picture icon, then **सहेजें** (needs internet).
-2. **जमा** (or the home tiles) — pick type, keypad amount, tap the member, **सहेजें और सुनें**.
-   - Green **जमा** = savings
-   - Orange **कर्ज़ दिया** = loan given
-   - Blue **कर्ज़ चुकाया** = loan repaid
-3. The phone speaks Hindi (example: *सीता ने 200 रुपये जमा किए*).
-4. **घर** shows cash on hand, total savings, and loans still due.
-5. **खाता** is the full ledger. Tap **सिंक** if a yellow badge says entries are still on the phone.
+1. **नया गाँव** — village name + PIN. Share the **गाँव कोड**.
+2. **लोग** — add मिस्त्री / बिजली / नल / राजमिस्त्री / मजदूर / दर्जी / ट्रैक्टर. **कॉल** or **SMS**.
+3. **माँग** — pick a skill icon, your name, optional wage. **सहेजें और सुनें**, or **सहेजें + SMS / शेयर** to reach a neighbor with no data (SMS) or Android Nearby Share.
+4. **काम** — open jobs, **काम लें**, **हो गया**.
 
-### Offline
+Workers and jobs save on the phone first and sync when the network returns.
 
-Savings and loan entries work with no network. A dark bar means offline; a yellow bar means pending uploads. Tap the bar or **सिंक** when coverage returns. Adding a new member still needs internet.
-
-### Install and sign out
-
-If **ऐप होम स्क्रीन पर लगाएं** appears, tap **इंस्टॉल** (or Chrome → Add to Home screen). **बाहर** on home signs out; you will need the code and PIN again.
-
-Troubleshooting, safety notes, and screen-by-screen detail: [User Guide](docs/USER_GUIDE.md).
+Troubleshooting and safety: [User Guide](docs/USER_GUIDE.md).
 
 ## Stack
 
 - **Frontend:** Vite + React (JavaScript) at `client/`
 - **Backend:** Node.js + Express (JavaScript) at `server/`
-- **Data:** `.data/samooh.json` by default, or MongoDB when `MONGODB_URI` is set
+- **Data:** `.data/samooh.json` and `.data/gramseva.json`, or MongoDB when `MONGODB_URI` is set
 
 ## Run locally
 
@@ -52,24 +44,27 @@ npm install
 npm run dev
 ```
 
-Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite proxies `/api` to the Express server on port 3001.
-
-Without `MONGODB_URI`, the API stores data in `.data/samooh.json` (gitignored). To use MongoDB:
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite proxies `/api` to Express on port 3001.
 
 ```bash
 cp .env.example .env
-# set MONGODB_URI and SESSION_SECRET
+# optional: set MONGODB_URI and SESSION_SECRET
 ```
 
 ## Screens
 
-| Route | Purpose |
-| --- | --- |
-| `/` | Group home: cash on hand, savings, loans |
-| `/group` | Member grid + add member |
-| `/entry` | Amount keypad + save / loan / repay |
-| `/history` | Ledger with pending-sync badge |
+| Route | App | Purpose |
+| --- | --- | --- |
+| `/` | Hub | Choose समूह or ग्रामसेवा |
+| `/samooh` | समूह | Cash on hand, savings, loans |
+| `/samooh/group` | समूह | Members |
+| `/samooh/entry` | समूह | Record money |
+| `/samooh/history` | समूह | Ledger |
+| `/seva` | ग्रामसेवा | Village home |
+| `/seva/directory` | ग्रामसेवा | Mechanic / labor directory |
+| `/seva/jobs` | ग्रामसेवा | Job bulletin board |
+| `/seva/post` | ग्रामसेवा | New help request |
 
 ## Out of scope (v1)
 
-UPI/wallets, credit scoring, NRLM government sync, dialects beyond Hindi, SMS/Bluetooth mesh.
+UPI/wallets, credit scoring, NRLM sync, dialects beyond Hindi, native Bluetooth/SMS mesh (phone SMS and Share sheet are used instead).

@@ -1,19 +1,18 @@
+import { Outlet } from "react-router-dom";
 import { AuthGate } from "./AuthGate.jsx";
 import { BottomNav } from "./BottomNav.jsx";
 import { GroupProvider, useGroup } from "./GroupProvider.jsx";
 import { OfflineBanner } from "./OfflineBanner.jsx";
-import { ServiceWorkerRegister } from "./ServiceWorkerRegister.jsx";
 
-export function AppShell({ children }) {
+export function AppShell() {
   return (
     <GroupProvider>
-      <ServiceWorkerRegister />
-      <ShellInner>{children}</ShellInner>
+      <ShellInner />
     </GroupProvider>
   );
 }
 
-function ShellInner({ children }) {
+function ShellInner() {
   const { session, loading } = useGroup();
 
   if (loading) {
@@ -35,7 +34,9 @@ function ShellInner({ children }) {
   return (
     <div className="min-h-dvh bg-[#f6f1e7] pb-24">
       <OfflineBanner />
-      <main className="mx-auto max-w-lg px-4 py-5">{children}</main>
+      <main className="mx-auto max-w-lg px-4 py-5">
+        <Outlet />
+      </main>
       <BottomNav />
     </div>
   );

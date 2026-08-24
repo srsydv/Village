@@ -6,6 +6,7 @@ import cors from "cors";
 import groupsRouter from "./routes/groups.js";
 import membersRouter from "./routes/members.js";
 import syncRouter from "./routes/sync.js";
+import sevaRouter from "./routes/seva.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT_DIR, ".env") });
@@ -24,6 +25,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/groups", groupsRouter);
 app.use("/api/members", membersRouter);
 app.use("/api/sync", syncRouter);
+app.use("/api/seva", sevaRouter);
 
 if (process.env.NODE_ENV === "production") {
   const dist = path.join(ROOT_DIR, "client", "dist");

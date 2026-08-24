@@ -1,6 +1,21 @@
-# समूह User Guide
+# Village User Guide
 
-**समूह (Samooh)** is a digital notebook for a village Self-Help Group (SHG). Use it to record weekly savings, loans, and repayments.
+Village has two tools. Open the app and pick one:
+
+| App | Hindi | For |
+| --- | --- | --- |
+| **समूह** | Samooh | Self-Help Group savings and loans |
+| **ग्रामसेवा** | GramSeva | Local mechanic, electrician, labor, and a job board |
+
+Both work on a phone browser (Chrome on Android is best). Unmute for Hindi voice.
+
+**Full path:** [http://127.0.0.1:5173](http://127.0.0.1:5173) locally, then **समूह** or **ग्रामसेवा**.
+
+---
+
+# समूह (Samooh)
+
+**समूह** is a digital notebook for a village Self-Help Group (SHG). Use it to record weekly savings, loans, and repayments.
 
 It does **not** move money, open bank accounts, or replace cash. Cash still changes hands in the meeting. The app only keeps a clear record.
 
@@ -16,7 +31,7 @@ It does **not** move money, open bank accounts, or replace cash. Cash still chan
 
 ## 1. Create a new group
 
-1. Open the app.
+1. Open the app and tap **समूह**.
 2. Tap **नया समूह** (New group).
 3. Type the group name (example: फूलमती बचत समूह).
 4. Optionally type the village name.
@@ -34,7 +49,7 @@ Write the code and PIN in the paper register as well, in case the phone is lost.
 
 Use this on a second phone, or if you already have a group.
 
-1. Open the app.
+1. Open the app and tap **समूह**.
 2. Tap **जुड़ें** (Join).
 3. Enter the **group code**.
 4. Enter the **4-digit PIN**.
@@ -165,9 +180,69 @@ On home, tap **बाहर**. You will need the group code and PIN to open the 
 
 ---
 
+# ग्रामसेवा (GramSeva)
+
+**ग्रामसेवा** connects neighbors to local skill-holders: mechanic, electrician, plumber, mason, farm labor, tailor, tractor. Post a job on the village board. It is not a payments app and does not book a worker for you — you still call or meet in person.
+
+## Create or join a village
+
+1. From Village home, tap **ग्रामसेवा**.
+2. **नया गाँव** — type the village name and a 4-digit PIN. Tap **गाँव बनाएं**. Note the 6-character **गाँव कोड**.
+3. **जुड़ें** on another phone — enter that code and PIN.
+
+## Directory (लोग)
+
+1. Tap **लोग** (or **+ जोड़ें**).
+2. Type the person’s name, optional 10-digit phone, and tap a skill icon (मिस्त्री, बिजली, नल, …).
+3. Tap **सहेजें और सुनें**. The phone speaks Hindi.
+4. **कॉल** dials them. **SMS** opens a message (or the phone share sheet) so you can send their name to a neighbor — including via Nearby / Bluetooth share on Android.
+
+Filter chips at the top show one skill at a time.
+
+Adding a worker **saves on the phone first**. It syncs when the network returns.
+
+## Ask for help (माँग)
+
+1. Tap **माँग**.
+2. Tap the skill icon, type **your** name, optionally a wage on the keypad.
+3. **सहेजें और सुनें** posts to the village board.
+4. **सहेजें + SMS / शेयर** does the same and opens SMS or the system share sheet so you can send the request to a neighbor **without internet** (SMS) or via Nearby Share.
+
+Example SMS:
+
+`ग्रामसेवा: रामपुर में सीता को बिजली चाहिए. गाँव कोड ABC123`
+
+## Job board (काम)
+
+- **खुला** — nobody has taken it yet.
+- **काम लें** — assign a person from the directory.
+- **हो गया** — mark finished.
+- **SMS / शेयर** — forward that job to someone else’s phone.
+
+## Offline
+
+| Banner | Meaning |
+| --- | --- |
+| Dark: **ऑफलाइन — माँग फोन पर सेव होगी, SMS से भी भेज सकते हैं** | Keep posting. Use SMS/share to reach a neighbor. |
+| Blue: **X चीज़ें सिंक बाकी** | Network is back. Tap to upload to the village ledger. |
+
+True Bluetooth mesh between two Village apps is not in this version. On Android, **शेयर** can still send the Hindi message through Nearby Share, WhatsApp, or SMS.
+
+## Bottom buttons
+
+| Icon | Hindi | Screen |
+| --- | --- | --- |
+| House | **घर** | Village totals and share |
+| Worker | **लोग** | Directory |
+| Clipboard | **काम** | Job board |
+| Megaphone | **माँग** | New request |
+
+---
+
 ## What this app does not do
 
 - Pay or receive money (no UPI, no bank transfer)
 - Score credit or decide who gets a loan
 - Connect to government NRLM systems
 - Speak languages other than Hindi (v1)
+- Direct Bluetooth/SMS mesh between two Village installs (use the phone’s SMS or Share sheet instead)

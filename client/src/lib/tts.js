@@ -25,6 +25,14 @@ export function speakHindi(text) {
   speak();
 }
 
+export function sevaJobPhrase({ posterName, skillLabel }) {
+  return `${posterName} ने ${skillLabel} का काम माँगा`;
+}
+
+export function sevaWorkerPhrase({ displayName, skillLabel }) {
+  return `${displayName} को ${skillLabel} के लिए जोड़ा`;
+}
+
 export function confirmationPhrase(input) {
   const amount = input.amountRupees;
   switch (input.type) {

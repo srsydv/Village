@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useGroup } from "./GroupProvider.jsx";
+import { useSeva } from "./SevaProvider.jsx";
 
-export function AuthGate() {
-  const { setSession } = useGroup();
+export function SevaAuthGate() {
+  const { setSession } = useSeva();
   const [mode, setMode] = useState("create");
   const [name, setName] = useState("");
-  const [village, setVillage] = useState("");
   const [code, setCode] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -18,23 +17,22 @@ export function AuthGate() {
     setBusy(true);
     try {
       if (mode === "create") {
-        const res = await fetch("/api/groups", {
+        const res = await fetch("/api/seva/villages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, pin, village }),
+          body: JSON.stringify({ name, pin }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Error");
         await setSession({
           token: data.token,
-          groupId: data.group._id,
-          groupCode: data.group.code,
-          groupName: data.group.name,
-          village: data.group.village,
+          villageId: data.village._id,
+          villageCode: data.village.code,
+          villageName: data.village.name,
         });
       } else {
         const res = await fetch(
-          `/api/groups/${encodeURIComponent(code.trim().toUpperCase())}/join`,
+          `/api/seva/villages/${encodeURIComponent(code.trim().toUpperCase())}/join`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -45,10 +43,9 @@ export function AuthGate() {
         if (!res.ok) throw new Error(data.error || "Error");
         await setSession({
           token: data.token,
-          groupId: data.group._id,
-          groupCode: data.group.code,
-          groupName: data.group.name,
-          village: data.group.village,
+          villageId: data.village._id,
+          villageCode: data.village.code,
+          villageName: data.village.name,
         });
       }
     } catch (err) {
@@ -65,13 +62,13 @@ export function AuthGate() {
       </Link>
       <div className="mb-8 text-center">
         <p className="text-5xl" aria-hidden>
-          🤝
+          🛠️
         </p>
-        <h1 className="mt-3 text-4xl font-black tracking-tight text-emerald-950">
-          समूह
+        <h1 className="mt-3 text-4xl font-black tracking-tight text-sky-950">
+          ग्रामसेवा
         </h1>
         <p className="mt-2 text-lg text-stone-600">
-          बचत समूह का डिजिटल खाता — कागज़ की जगह
+          मिस्त्री, बिजली, मजदूर — पड़ोसी से सीधा काम
         </p>
       </div>
 
@@ -79,16 +76,16 @@ export function AuthGate() {
         <button
           type="button"
           className={`min-h-12 rounded-xl text-base font-bold ${
-            mode === "create" ? "bg-white text-emerald-900 shadow" : "text-stone-500"
+            mode === "create" ? "bg-white text-sky-900 shadow" : "text-stone-500"
           }`}
           onClick={() => setMode("create")}
         >
-          नया समूह
+          नया गाँव
         </button>
         <button
           type="button"
           className={`min-h-12 rounded-xl text-base font-bold ${
-            mode === "join" ? "bg-white text-emerald-900 shadow" : "text-stone-500"
+            mode === "join" ? "bg-white text-sky-900 shadow" : "text-stone-500"
           }`}
           onClick={() => setMode("join")}
         >
@@ -98,34 +95,22 @@ export function AuthGate() {
 
       <form onSubmit={onSubmit} className="space-y-4">
         {mode === "create" ? (
-          <>
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-stone-600">
-                समूह का नाम
-              </span>
-              <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
-                placeholder="जैसे: फूलमती बचत समूह"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-stone-600">
-                गाँव (वैकल्पिक)
-              </span>
-              <input
-                value={village}
-                onChange={(e) => setVillage(e.target.value)}
-                className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
-              />
-            </label>
-          </>
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold text-stone-600">
+              गाँव का नाम
+            </span>
+            <input
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
+              placeholder="जैसे: रामपुर"
+            />
+          </label>
         ) : (
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-stone-600">
-              समूह कोड
+              गाँव कोड
             </span>
             <input
               required
@@ -162,9 +147,9 @@ export function AuthGate() {
 
         <button
           disabled={busy}
-          className="min-h-16 w-full rounded-2xl bg-emerald-700 text-xl font-black text-white disabled:opacity-50"
+          className="min-h-16 w-full rounded-2xl bg-sky-800 text-xl font-black text-white disabled:opacity-50"
         >
-          {busy ? "रुकिए…" : mode === "create" ? "समूह बनाएं" : "अंदर जाएं"}
+          {busy ? "रुकिए…" : mode === "create" ? "गाँव बनाएं" : "अंदर जाएं"}
         </button>
       </form>
     </div>

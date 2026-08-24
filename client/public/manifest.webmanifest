@@ -1,7 +1,7 @@
 {
-  "name": "समूह — Village",
-  "short_name": "समूह",
-  "description": "गाँव के बचत समूह का ऑफलाइन डिजिटल खाता",
+  "name": "Village — समूह और ग्रामसेवा",
+  "short_name": "Village",
+  "description": "बचत समूह का खाता और गाँव की सेवा — मिस्त्री, बिजली, मजदूर",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f6f1e7",

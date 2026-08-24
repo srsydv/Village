@@ -1,5 +1,16 @@
-const CACHE = "samooh-v1";
-const PRECACHE = ["/", "/group", "/entry", "/history", "/manifest.webmanifest"];
+const CACHE = "village-v2";
+const PRECACHE = [
+  "/",
+  "/samooh",
+  "/samooh/group",
+  "/samooh/entry",
+  "/samooh/history",
+  "/seva",
+  "/seva/directory",
+  "/seva/jobs",
+  "/seva/post",
+  "/manifest.webmanifest",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
