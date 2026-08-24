@@ -24,6 +24,17 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/news", newsRouter);
 
+app.use((err, _req, res, next) => {
+  if (res.headersSent) return next(err);
+  console.error("API error", err);
+  const status = err.status || err.statusCode || 500;
+  const message =
+    err.code === "LIMIT_FILE_SIZE"
+      ? "फाइल बहुत बड़ी है (अधिकतम 25 MB)"
+      : err.message || "सर्वर त्रुटि";
+  return res.status(status).json({ error: message });
+});
+
 if (process.env.NODE_ENV === "production") {
   const dist = path.join(ROOT_DIR, "client", "dist");
   app.use(express.static(dist));
