@@ -1,14 +1,10 @@
-const CACHE = "village-v2";
+const CACHE = "village-v4";
 const PRECACHE = [
   "/",
-  "/samooh",
-  "/samooh/group",
-  "/samooh/entry",
-  "/samooh/history",
-  "/seva",
-  "/seva/directory",
-  "/seva/jobs",
-  "/seva/post",
+  "/news",
+  "/news/official",
+  "/news/compose",
+  "/news/chat",
   "/manifest.webmanifest",
 ];
 

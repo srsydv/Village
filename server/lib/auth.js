@@ -12,6 +12,19 @@ export async function verifyPin(pin, pinHash) {
   return bcrypt.compare(pin, pinHash);
 }
 
+export const hashPassword = hashPin;
+export const verifyPassword = verifyPin;
+
+export function normalizeEmail(email) {
+  return String(email || "")
+    .trim()
+    .toLowerCase();
+}
+
+export function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
+}
+
 export function createSessionToken(groupId, groupCode) {
   const payload = `${groupId}.${groupCode}.${Date.now()}`;
   const sig = createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");

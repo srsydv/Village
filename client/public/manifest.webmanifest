@@ -1,11 +1,11 @@
 {
-  "name": "Village — समूह और ग्रामसेवा",
+  "name": "Village — समाचार",
   "short_name": "Village",
-  "description": "बचत समूह का खाता और गाँव की सेवा — मिस्त्री, बिजली, मजदूर",
-  "start_url": "/",
+  "description": "गाँव की सरकारी खबर और पड़ोसियों की आवाज़",
+  "start_url": "/news",
   "display": "standalone",
   "background_color": "#f6f1e7",
-  "theme_color": "#166534",
+  "theme_color": "#115e59",
   "lang": "hi",
   "icons": [
     {
