@@ -44,7 +44,7 @@ export function attachRealtime(httpServer) {
       if (typeof roomId !== "string") return;
       if (roomId.startsWith("dm:") && roomId.includes(user._id)) socket.join(roomId);
       if (roomId.startsWith("group:")) socket.join(roomId);
-      if (roomId.startsWith("village:")) socket.join(roomId);
+      if (roomId === villageRoom(user.pincode, user.villageName)) socket.join(roomId);
     });
   });
 

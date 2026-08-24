@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f1e7;
-  --foreground: #1c1917;
+  --ink: #102824;
+  --forest: #0e5c54;
+  --forest-deep: #083f3a;
+  --gold: #c8922a;
+  --cream: #f3ece0;
+  --paper: #fffcf8;
+  --mist: rgba(255, 252, 247, 0.72);
+  --line: rgba(16, 40, 36, 0.08);
+  --background: #f3ece0;
+  --foreground: #102824;
 }
 
 @theme inline {
@@ -14,12 +22,162 @@ html,
 body,
 #root {
   min-height: 100%;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: "Noto Sans Devanagari", sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: "Noto Sans Devanagari", "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 button,
-a {
+a,
+input,
+select,
+textarea {
   -webkit-tap-highlight-color: transparent;
+}
+
+.app-bg {
+  min-height: 100dvh;
+  background:
+    radial-gradient(900px 480px at -10% -20%, rgba(200, 146, 42, 0.22), transparent 55%),
+    radial-gradient(800px 420px at 110% -10%, rgba(14, 92, 84, 0.2), transparent 50%),
+    linear-gradient(180deg, #f8f2e7 0%, #efe4d4 100%);
+}
+
+.glass {
+  background: var(--mist);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    0 20px 50px -28px rgba(16, 40, 36, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 34px -24px rgba(16, 40, 36, 0.4);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #1a7a70 0%, #0e5c54 100%);
+  color: white;
+  box-shadow: 0 12px 24px -12px rgba(14, 92, 84, 0.75);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+.input-field {
+  min-height: 3.5rem;
+  width: 100%;
+  border-radius: 1.15rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 252, 248, 0.9);
+  padding: 0 1rem;
+  font-size: 1.05rem;
+  outline: none;
+}
+
+textarea.input-field {
+  min-height: 8rem;
+  padding: 1rem;
+  resize: vertical;
+}
+
+.input-field:focus,
+select.input-field:focus,
+textarea.input-field:focus {
+  border-color: rgba(14, 92, 84, 0.45);
+  box-shadow: 0 0 0 4px rgba(14, 92, 84, 0.12);
+}
+
+.dock {
+  left: 1rem;
+  right: 1rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  max-width: 28rem;
+  margin-inline: auto;
+  border-radius: 1.75rem;
+}
+
+.rise {
+  animation: rise 0.45s ease both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.chat-wallpaper {
+  background-color: #e9e0d2;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(14, 92, 84, 0.06) 0 2px, transparent 3px),
+    radial-gradient(circle at 82% 42%, rgba(200, 146, 42, 0.08) 0 2px, transparent 3px);
+  background-size: 28px 28px;
+}
+
+.bubble-mine {
+  background: linear-gradient(180deg, #dff8d6 0%, #c9efbf 100%);
+}
+
+.kicker {
+  letter-spacing: 0.22em;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.ig-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: 999px;
+  color: var(--ink);
+}
+
+.ig-icon:active {
+  opacity: 0.55;
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(16, 40, 36, 0.45);
+  padding: 0;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-width: 28rem;
+  border-radius: 1.5rem 1.5rem 0 0;
+  background: var(--paper);
+  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -20px 50px -28px rgba(16, 40, 36, 0.45);
+  animation: sheet-up 0.28s ease both;
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0.6;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

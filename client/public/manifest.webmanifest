@@ -4,8 +4,8 @@
   "description": "गाँव की सरकारी खबर और पड़ोसियों की आवाज़",
   "start_url": "/news",
   "display": "standalone",
-  "background_color": "#f6f1e7",
-  "theme_color": "#115e59",
+  "background_color": "#f3ece0",
+  "theme_color": "#0e5c54",
   "lang": "hi",
   "icons": [
     {

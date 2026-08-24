@@ -9,7 +9,7 @@ function cleanPlaceName(name) {
     .trim();
 }
 
-function uniqueNames(names) {
+export function uniqueNames(names) {
   const seen = new Set();
   const out = [];
   for (const raw of names) {

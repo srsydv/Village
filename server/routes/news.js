@@ -11,7 +11,7 @@ import {
   requireGroup,
   verifyPassword,
 } from "../lib/auth.js";
-import { listVillages, lookupPincode, reverseGeocode } from "../lib/pincode.js";
+import { listVillages, lookupPincode, reverseGeocode, uniqueNames } from "../lib/pincode.js";
 import {
   fetchOfficialPage,
   isOfficialUrl,
@@ -19,12 +19,16 @@ import {
 } from "../lib/official.js";
 import {
   addComment,
+  addGroupMembers,
   addMessage,
   createChatGroup,
   createPost,
+  createRepost,
   createUser,
   findUserByEmail,
   findUserById,
+  findUserRepost,
+  findUsersByIds,
   getChatGroup,
   getPost,
   lastMessagesForRooms,
@@ -32,12 +36,22 @@ import {
   listComments,
   listDistrictPosts,
   listDmPeerIds,
+  listKnownVillages,
   listMessages,
+  listPostsByAuthor,
+  listSavedPosts,
+  listUserRepostOriginalIds,
+  listVillageMembers,
   listVillagePosts,
   listVillagers,
+  recordView,
+  removeRepost,
+  resolveVillageName,
   searchUsers,
   seedOfficialIfEmpty,
   toggleLike,
+  toggleSave,
+  updateUser,
 } from "../lib/news-store.js";
 import { dmRoom, groupRoom, publicUser, villageRoom } from "../lib/news-types.js";
 import { emitChat, emitVillageAlert } from "../realtime.js";
@@ -99,6 +113,8 @@ router.get("/villages", async (req, res) => {
       pincode: req.query.pincode,
       postOffice: req.query.postOffice,
     });
+    const known = await listKnownVillages(data.pincode, data.postOffice);
+    data.villages = uniqueNames([...known, ...data.villages]);
     return res.json(data);
   } catch (err) {
     return res.status(400).json({ error: err.message || "गाँव सूची नहीं मिली" });
@@ -120,7 +136,7 @@ router.post("/register", async (req, res) => {
     const email = normalizeEmail(req.body.email);
     const password = String(req.body.password || "");
     const pincode = String(req.body.pincode || "").replace(/\D/g, "");
-    const villageName = String(req.body.villageName || "").trim();
+    const requestedVillage = String(req.body.villageName || "").trim();
     if (displayName.length < 1) {
       return res.status(400).json({ error: "नाम डालें" });
     }
@@ -133,11 +149,17 @@ router.post("/register", async (req, res) => {
     if (!/^\d{6}$/.test(pincode)) {
       return res.status(400).json({ error: "6 अंक का पिन कोड डालें" });
     }
-    if (!villageName) {
+    if (!requestedVillage) {
       return res.status(400).json({ error: "गाँव का नाम चुनें" });
     }
 
     const postal = await lookupPincode(pincode);
+    const postOffice = String(req.body.postOffice || postal.postOffices[0]?.name || "");
+    const villageName = await resolveVillageName({
+      pincode: postal.pincode,
+      postOffice,
+      villageName: requestedVillage,
+    });
     const passwordHash = await hashPassword(password);
     const user = await createUser({
       displayName,
@@ -146,7 +168,7 @@ router.post("/register", async (req, res) => {
       pincode: postal.pincode,
       state: postal.state,
       district: postal.district,
-      postOffice: String(req.body.postOffice || postal.postOffices[0]?.name || ""),
+      postOffice,
       villageName,
       lat: Number.isFinite(Number(req.body.lat)) ? Number(req.body.lat) : null,
       lng: Number.isFinite(Number(req.body.lng)) ? Number(req.body.lng) : null,
@@ -184,6 +206,38 @@ router.get("/me", async (req, res) => {
   const user = await currentUser(req, res);
   if (!user) return;
   return res.json({ user: publicUser(user) });
+});
+
+router.patch("/me", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  try {
+    const updated = await updateUser(user._id, {
+      displayName: req.body.displayName,
+    });
+    return res.json({ user: publicUser(updated) });
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message || "सेव नहीं हुआ" });
+  }
+});
+
+router.post("/me/avatar", upload.single("avatar"), async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  if (!req.file) return res.status(400).json({ error: "फोटो चुनें" });
+  if (!String(req.file.mimetype || "").startsWith("image/")) {
+    return res.status(400).json({ error: "केवल फोटो लगाएं" });
+  }
+  const avatarUrl = publicUrl(req.file);
+  const updated = await updateUser(user._id, { avatarUrl });
+  return res.json({ user: publicUser(updated) });
+});
+
+router.delete("/me/avatar", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const updated = await updateUser(user._id, { avatarUrl: "" });
+  return res.json({ user: publicUser(updated) });
 });
 
 router.get("/villagers", async (req, res) => {
@@ -249,11 +303,92 @@ router.get("/posts", async (req, res) => {
   const user = await currentUser(req, res);
   if (!user) return;
   const posts = await listVillagePosts(user.pincode, user.villageName);
+  const authors = await findUsersByIds([...new Set(posts.map((p) => p.authorId).filter(Boolean))]);
+  const byId = Object.fromEntries(authors.map((a) => [a._id, a]));
+  const repostedIds = await listUserRepostOriginalIds(user._id);
+  const savedSet = new Set(user.savedPostIds || []);
+  return res.json({
+    posts: posts.map((p) => {
+      const rootId = p.isRepost && p.originalPostId ? p.originalPostId : p._id;
+      return {
+        ...p,
+        authorAvatar: byId[p.authorId]?.avatarUrl || "",
+        liked: (p.likeIds || []).includes(user._id),
+        viewCount: p.viewCount || (p.viewIds || []).length || 0,
+        repostCount: p.repostCount || 0,
+        reposted: repostedIds.has(rootId) || (p.isRepost && p.authorId === user._id),
+        saved: savedSet.has(p._id) || savedSet.has(rootId),
+      };
+    }),
+  });
+});
+
+router.get("/posts/saved", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const posts = await listSavedPosts(user._id);
+  const authors = await findUsersByIds([...new Set(posts.map((p) => p.authorId).filter(Boolean))]);
+  const byId = Object.fromEntries(authors.map((a) => [a._id, a]));
+  const repostedIds = await listUserRepostOriginalIds(user._id);
+  const savedSet = new Set(user.savedPostIds || []);
   return res.json({
     posts: posts.map((p) => ({
       ...p,
+      authorAvatar: byId[p.authorId]?.avatarUrl || "",
       liked: (p.likeIds || []).includes(user._id),
+      viewCount: p.viewCount || (p.viewIds || []).length || 0,
+      repostCount: p.repostCount || 0,
+      reposted: repostedIds.has(p._id),
+      saved: savedSet.has(p._id),
     })),
+  });
+});
+
+async function decoratePost(p, viewer) {
+  const authors = await findUsersByIds([p.authorId, p.originalAuthorId].filter(Boolean));
+  const byId = Object.fromEntries(authors.map((a) => [a._id, a]));
+  const rootId = p.isRepost && p.originalPostId ? p.originalPostId : p._id;
+  const repostedIds = await listUserRepostOriginalIds(viewer._id);
+  const savedSet = new Set(viewer.savedPostIds || []);
+  return {
+    ...p,
+    authorAvatar: byId[p.authorId]?.avatarUrl || "",
+    liked: (p.likeIds || []).includes(viewer._id),
+    viewCount: p.viewCount || (p.viewIds || []).length || 0,
+    repostCount: p.repostCount || 0,
+    reposted: repostedIds.has(rootId) || (p.isRepost && p.authorId === viewer._id),
+    saved: savedSet.has(p._id) || savedSet.has(rootId),
+  };
+}
+
+router.get("/posts/:id", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const post = await getPost(req.params.id);
+  if (!post) return res.status(404).json({ error: "पोस्ट नहीं मिली" });
+  return res.json({ post: await decoratePost(post, user) });
+});
+
+router.get("/users/:id", async (req, res) => {
+  const me = await currentUser(req, res);
+  if (!me) return;
+  const profile = await findUserById(req.params.id);
+  if (!profile) return res.status(404).json({ error: "यूज़र नहीं मिला" });
+  const posts = await listPostsByAuthor(profile._id, 60);
+  const decorated = await Promise.all(posts.map((p) => decoratePost(p, me)));
+  const originals = posts.filter((p) => !p.isRepost);
+  const likes = originals.reduce((n, p) => n + (p.likeCount || 0), 0);
+  const views = originals.reduce((n, p) => n + (p.viewCount || (p.viewIds || []).length || 0), 0);
+  return res.json({
+    user: publicUser(profile),
+    stats: {
+      posts: originals.length,
+      likes,
+      views,
+      reposts: posts.filter((p) => p.isRepost).length,
+    },
+    posts: decorated,
+    isSelf: profile._id === me._id,
   });
 });
 
@@ -264,49 +399,50 @@ router.post(
     { name: "audio", maxCount: 1 },
   ]),
   async (req, res) => {
-  const user = await currentUser(req, res);
-  if (!user) return;
-  try {
-    const text = String(req.body.text || "").trim();
-    const mediaFile = req.files?.media?.[0] || null;
-    const audioFile = req.files?.audio?.[0] || null;
-    let type = mediaTypeOf(mediaFile);
-    let mediaUrl = publicUrl(mediaFile);
-    let audioUrl = publicUrl(audioFile);
-    if (type === "audio" && !audioUrl) {
-      audioUrl = mediaUrl;
-      mediaUrl = "";
-      type = "none";
+    try {
+      const user = await currentUser(req, res);
+      if (!user) return;
+      const text = String(req.body.text || "").trim();
+      const mediaFile = req.files?.media?.[0] || null;
+      const audioFile = req.files?.audio?.[0] || null;
+      let type = mediaTypeOf(mediaFile);
+      let mediaUrl = publicUrl(mediaFile);
+      let audioUrl = publicUrl(audioFile);
+      if (type === "audio" && !audioUrl) {
+        audioUrl = mediaUrl;
+        mediaUrl = "";
+        type = "none";
+      }
+      if (!text && type === "none" && !audioUrl) {
+        return res.status(400).json({ error: "लिखें, फोटो/वीडियो, या आवाज़ जोड़ें" });
+      }
+      const post = await createPost({
+        authorId: user._id,
+        authorName: user.displayName,
+        villageName: user.villageName,
+        pincode: user.pincode,
+        district: user.district,
+        state: user.state,
+        text,
+        mediaUrl,
+        mediaType: type,
+        audioUrl,
+      });
+      emitVillageAlert(user.pincode, user.villageName, {
+        type: "post",
+        postId: post._id,
+        authorName: user.displayName,
+        villageName: user.villageName,
+        preview: text.slice(0, 80) || "नई खबर",
+        createdAt: post.createdAt,
+      });
+      return res.json({ post: { ...post, liked: false } });
+    } catch (err) {
+      console.error("create post", err);
+      return res.status(500).json({ error: err.message || "पोस्ट नहीं बनी" });
     }
-    if (!text && type === "none" && !audioUrl) {
-      return res.status(400).json({ error: "लिखें, फोटो/वीडियो, या आवाज़ जोड़ें" });
-    }
-    const post = await createPost({
-      authorId: user._id,
-      authorName: user.displayName,
-      villageName: user.villageName,
-      pincode: user.pincode,
-      district: user.district,
-      state: user.state,
-      text,
-      mediaUrl,
-      mediaType: type,
-      audioUrl,
-    });
-    emitVillageAlert(user.pincode, user.villageName, {
-      type: "post",
-      postId: post._id,
-      authorName: user.displayName,
-      villageName: user.villageName,
-      preview: text.slice(0, 80) || "नई खबर",
-      createdAt: post.createdAt,
-    });
-    return res.json({ post: { ...post, liked: false } });
-  } catch (err) {
-    console.error("create post", err);
-    return res.status(500).json({ error: "पोस्ट नहीं बनी" });
-  }
-});
+  },
+);
 
 router.post("/posts/:id/like", async (req, res) => {
   const user = await currentUser(req, res);
@@ -314,6 +450,87 @@ router.post("/posts/:id/like", async (req, res) => {
   const result = await toggleLike(req.params.id, user._id);
   if (!result) return res.status(404).json({ error: "पोस्ट नहीं मिली" });
   return res.json(result);
+});
+
+router.post("/posts/:id/view", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const result = await recordView(req.params.id, user._id);
+  if (!result) return res.status(404).json({ error: "पोस्ट नहीं मिली" });
+  return res.json(result);
+});
+
+router.post("/posts/:id/save", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const result = await toggleSave(user._id, req.params.id);
+  if (!result) return res.status(404).json({ error: "पोस्ट नहीं मिली" });
+  const fresh = await findUserById(user._id);
+  return res.json({ ...result, user: publicUser(fresh) });
+});
+
+router.post("/posts/:id/repost", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const original = await getPost(req.params.id);
+  if (!original) return res.status(404).json({ error: "पोस्ट नहीं मिली" });
+  const rootId = original.isRepost && original.originalPostId ? original.originalPostId : original._id;
+  const existing = await findUserRepost(user._id, rootId);
+  if (existing) {
+    await removeRepost(user._id, rootId);
+    const root = await getPost(rootId);
+    return res.json({ reposted: false, repostCount: root?.repostCount || 0 });
+  }
+  const root = (await getPost(rootId)) || original;
+  const { post } = await createRepost(user, root);
+  const updated = await getPost(rootId);
+  emitVillageAlert(user.pincode, user.villageName, {
+    type: "repost",
+    postId: post._id,
+    authorName: user.displayName,
+    villageName: user.villageName,
+    preview: (root.text || "").slice(0, 80) || "रीपोस्ट",
+    createdAt: post.createdAt,
+  });
+  return res.json({
+    reposted: true,
+    repostCount: updated?.repostCount || 0,
+    post,
+  });
+});
+
+router.post("/posts/:id/send", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const peerId = String(req.body.peerId || "");
+  if (!peerId || peerId === user._id) {
+    return res.status(400).json({ error: "किसे भेजना है चुनें" });
+  }
+  const peer = await findUserById(peerId);
+  if (!peer) return res.status(404).json({ error: "यूज़र नहीं मिला" });
+  const post = await getPost(req.params.id);
+  if (!post) return res.status(404).json({ error: "पोस्ट नहीं मिली" });
+  const note = String(req.body.note || "").trim();
+  const roomId = dmRoom(user._id, peerId);
+  const sharedPost = {
+    _id: post._id,
+    authorId: post.isRepost ? post.originalAuthorId || post.authorId : post.authorId,
+    authorName: post.isRepost ? post.originalAuthorName || post.authorName : post.authorName,
+    text: post.text || "",
+    mediaUrl: post.mediaUrl || "",
+    mediaType: post.mediaType || "none",
+    audioUrl: post.audioUrl || "",
+    villageName: post.villageName || "",
+  };
+  const msg = await addMessage({
+    roomId,
+    fromId: user._id,
+    fromName: user.displayName,
+    text: note || `📰 ${sharedPost.authorName}`,
+    sharedPost,
+  });
+  emitChat(roomId, msg, [peerId, user._id]);
+  return res.json({ message: msg, roomId, peerId });
 });
 
 router.get("/posts/:id/comments", async (req, res) => {
@@ -347,6 +564,7 @@ router.get("/chat/inbox", async (req, res) => {
   const user = await currentUser(req, res);
   if (!user) return;
   const villagers = await listVillagers(user.pincode, user.villageName, user._id);
+  const villagePeople = await listVillageMembers(user.pincode, user.villageName);
   const villageId = villageRoom(user.pincode, user.villageName);
   const groups = await listChatGroups(user._id);
   const dms = await listDmPeerIds(user._id);
@@ -367,7 +585,7 @@ router.get("/chat/inbox", async (req, res) => {
       id: "village",
       kind: "group",
       title: user.villageName,
-      subtitle: "गाँव समूह",
+      subtitle: `${villagePeople.length} सदस्य`,
       roomId: villageId,
       last: lastByRoom[villageId] || null,
     },
@@ -389,6 +607,7 @@ router.get("/chat/inbox", async (req, res) => {
         roomId: d.roomId,
         last: lastByRoom[d.roomId] || null,
         peerId: d.peerId,
+        avatarUrl: peer?.avatarUrl || "",
       };
     }),
     ...villagers
@@ -401,6 +620,7 @@ router.get("/chat/inbox", async (req, res) => {
         roomId: dmRoom(user._id, v._id),
         last: null,
         peerId: v._id,
+        avatarUrl: v.avatarUrl || "",
       })),
   ].sort((a, b) => {
     const at = a.last?.createdAt || "";
@@ -430,15 +650,39 @@ router.post("/chat/groups", async (req, res) => {
   const name = String(req.body.name || "").trim();
   const memberIds = Array.isArray(req.body.memberIds) ? req.body.memberIds.map(String) : [];
   if (name.length < 1) return res.status(400).json({ error: "समूह का नाम डालें" });
-  const ids = [...new Set([user._id, ...memberIds])];
+  const others = [...new Set(memberIds.filter((id) => id && id !== user._id))];
+  if (!others.length) return res.status(400).json({ error: "कम से कम एक सदस्य जोड़ें" });
+  const found = await findUsersByIds(others);
+  if (found.length !== others.length) {
+    return res.status(400).json({ error: "कुछ सदस्य नहीं मिले" });
+  }
   const group = await createChatGroup({
     name,
-    memberIds: ids,
+    memberIds: [user._id, ...others],
     createdBy: user._id,
     pincode: user.pincode,
     villageName: user.villageName,
   });
   return res.json({ group });
+});
+
+router.post("/chat/groups/:id/members", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  const group = await getChatGroup(req.params.id);
+  if (!group || !(group.memberIds || []).includes(user._id)) {
+    return res.status(404).json({ error: "समूह नहीं मिला" });
+  }
+  const memberIds = Array.isArray(req.body.memberIds) ? req.body.memberIds.map(String) : [];
+  const others = [...new Set(memberIds.filter((id) => id && id !== user._id))];
+  if (!others.length) return res.status(400).json({ error: "कम से कम एक सदस्य जोड़ें" });
+  const found = await findUsersByIds(others);
+  if (found.length !== others.length) {
+    return res.status(400).json({ error: "कुछ सदस्य नहीं मिले" });
+  }
+  const updated = await addGroupMembers(group._id, others);
+  const members = await findUsersByIds(updated.memberIds || []);
+  return res.json({ group: updated, members: members.map((p) => publicUser(p)) });
 });
 
 router.get("/chat", async (req, res) => {
@@ -449,6 +693,7 @@ router.get("/chat", async (req, res) => {
   let roomId = villageRoom(user.pincode, user.villageName);
   let title = user.villageName;
   let kind = "group";
+  let members = [];
   if (groupId && groupId !== "village") {
     const group = await getChatGroup(groupId);
     if (!group || !(group.memberIds || []).includes(user._id)) {
@@ -462,9 +707,16 @@ router.get("/chat", async (req, res) => {
     const peer = await findUserById(peerId);
     title = peer?.displayName || "निजी बात";
     kind = "dm";
+    if (peer) members = [publicUser(peer)];
   }
   const messages = await listMessages(roomId);
-  return res.json({ roomId, messages, title, kind });
+  if (kind === "group" && groupId && groupId !== "village") {
+    const group = await getChatGroup(groupId);
+    members = (await findUsersByIds(group?.memberIds || [])).map((p) => publicUser(p));
+  } else if (kind === "group") {
+    members = (await listVillageMembers(user.pincode, user.villageName)).map((p) => publicUser(p));
+  }
+  return res.json({ roomId, messages, title, kind, members });
 });
 
 router.post("/chat", upload.single("audio"), async (req, res) => {
@@ -489,6 +741,8 @@ router.post("/chat", upload.single("audio"), async (req, res) => {
   } else if (peerId) {
     roomId = dmRoom(user._id, peerId);
     extraUserIds = [peerId, user._id];
+  } else {
+    extraUserIds = (await listVillageMembers(user.pincode, user.villageName)).map((p) => p._id);
   }
   const msg = await addMessage({
     roomId,

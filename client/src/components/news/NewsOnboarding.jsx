@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { InstallPrompt } from "../InstallPrompt.jsx";
+import { LanguageToggle } from "./LanguageToggle.jsx";
 import { useNews } from "./NewsProvider.jsx";
 
 const OTHER_VILLAGE = "__other__";
 
 export function NewsOnboarding() {
-  const { setSession } = useNews();
+  const { setSession, t, te } = useNews();
   const [mode, setMode] = useState("register");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,13 +24,25 @@ export function NewsOnboarding() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function applyVillageChoice(choice, custom = customVillage) {
-    setVillageChoice(choice);
+  function applyVillageChoice(choice, custom = customVillage, list = villages) {
     if (choice === OTHER_VILLAGE) {
-      setVillageName(custom.trim());
-    } else {
-      setVillageName(choice);
+      const typed = custom.replace(/\s+/g, " ").trim();
+      const hit = list.find(
+        (v) => v.replace(/\s+/g, " ").trim().toLocaleLowerCase("en-IN") === typed.toLocaleLowerCase("en-IN"),
+      );
+      if (hit) {
+        setVillageChoice(hit);
+        setVillageName(hit);
+        setCustomVillage("");
+        return;
+      }
+      setVillageChoice(OTHER_VILLAGE);
+      setCustomVillage(custom);
+      setVillageName(typed);
+      return;
     }
+    setVillageChoice(choice);
+    setVillageName(choice);
   }
 
   async function loadVillages(pinValue, officeName) {
@@ -37,7 +50,7 @@ export function NewsOnboarding() {
     if (officeName) qs.set("postOffice", officeName);
     const res = await fetch(`/api/news/villages?${qs}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "गाँव सूची नहीं मिली");
+    if (!res.ok) throw new Error(data.error || t("villagesFailed"));
     const list = data.villages || [];
     setVillages(list);
     setVillageMeta({ block: data.block || "", source: data.source || "" });
@@ -56,7 +69,7 @@ export function NewsOnboarding() {
     try {
       const res = await fetch(`/api/news/pincode/${pinValue}`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "पिन कोड नहीं मिला");
+      if (!res.ok) throw new Error(data.error || t("pinNotFound"));
       setLookup(data);
       const firstOffice = data.postOffices?.[0]?.name || "";
       setPostOffice(firstOffice);
@@ -65,7 +78,7 @@ export function NewsOnboarding() {
       setLookup(null);
       setVillages([]);
       setVillageMeta(null);
-      setError(err.message);
+      setError(te(err.message));
     } finally {
       setBusy(false);
     }
@@ -79,7 +92,7 @@ export function NewsOnboarding() {
     try {
       await loadVillages(pincode, name);
     } catch (err) {
-      setError(err.message);
+      setError(te(err.message));
     } finally {
       setBusy(false);
     }
@@ -88,7 +101,7 @@ export function NewsOnboarding() {
   async function useGps() {
     setError("");
     if (!navigator.geolocation) {
-      setError("इस फोन पर GPS नहीं है");
+      setError(t("noGps"));
       return;
     }
     setBusy(true);
@@ -104,14 +117,14 @@ export function NewsOnboarding() {
             }),
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || "स्थान नहीं मिला");
+          if (!res.ok) throw new Error(data.error || t("geoFailed"));
           setLat(pos.coords.latitude);
           setLng(pos.coords.longitude);
           if (data.pincode) {
             setPincode(data.pincode);
             const pinRes = await fetch(`/api/news/pincode/${data.pincode}`);
             const pinData = await pinRes.json();
-            if (!pinRes.ok) throw new Error(pinData.error || "पिन कोड नहीं मिला");
+            if (!pinRes.ok) throw new Error(pinData.error || t("pinNotFound"));
             setLookup(pinData);
             const firstOffice = pinData.postOffices?.[0]?.name || "";
             setPostOffice(firstOffice);
@@ -131,14 +144,14 @@ export function NewsOnboarding() {
             applyVillageChoice(OTHER_VILLAGE, data.villageGuess);
           }
         } catch (err) {
-          setError(err.message);
+          setError(te(err.message));
         } finally {
           setBusy(false);
         }
       },
       () => {
         setBusy(false);
-        setError("स्थान की अनुमति दें");
+        setError(t("gpsPermission"));
       },
     );
   }
@@ -152,10 +165,10 @@ export function NewsOnboarding() {
         const res = await fetch("/api/news/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email: email.trim(), password }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "लॉगिन नहीं हुआ");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || t("loginFailed"));
         setSession({ token: data.token, user: data.user });
         return;
       }
@@ -163,7 +176,7 @@ export function NewsOnboarding() {
       const finalVillage =
         villageChoice === OTHER_VILLAGE ? customVillage.trim() : villageName.trim();
       if (!finalVillage) {
-        throw new Error("गाँव चुनें या लिखें");
+        throw new Error(t("pickVillage"));
       }
       const res = await fetch("/api/news/register", {
         method: "POST",
@@ -180,10 +193,10 @@ export function NewsOnboarding() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "खाता नहीं बना");
+      if (!res.ok) throw new Error(data.error || t("registerFailed"));
       setSession({ token: data.token, user: data.user });
     } catch (err) {
-      setError(err.message);
+      setError(te(err.message));
     } finally {
       setBusy(false);
     }
@@ -191,34 +204,35 @@ export function NewsOnboarding() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-5 py-10">
-      <div className="mb-6 text-center">
-        <p className="text-5xl" aria-hidden>
-          🗞️
-        </p>
-        <h1 className="mt-3 text-4xl font-black text-teal-950">समाचार</h1>
-        <p className="mt-2 text-lg text-stone-600">
-          खाता बनाएं, फिर ईमेल और पासवर्ड से अंदर आएं
-        </p>
+      <div className="glass rise mb-6 rounded-[2rem] px-6 py-8 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--forest)] text-3xl text-white shadow-lg">
+          🌾
+        </div>
+        <p className="kicker mt-4">VILLAGE</p>
+        <h1 className="mt-1 text-4xl font-extrabold tracking-tight text-[var(--ink)]">{t("appName")}</h1>
+        <p className="mt-2 text-base font-medium text-stone-500">{t("tagline")}</p>
       </div>
 
-      <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1">
+      <LanguageToggle />
+
+      <div className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-black/5 p-1">
         <button
           type="button"
-          className={`min-h-12 rounded-xl text-base font-bold ${
-            mode === "register" ? "bg-white text-teal-900 shadow" : "text-stone-500"
+          className={`min-h-12 rounded-full text-base font-bold ${
+            mode === "register" ? "bg-white text-[var(--forest-deep)] shadow-sm" : "text-stone-500"
           }`}
           onClick={() => setMode("register")}
         >
-          खाता बनाएं
+          {t("createAccount")}
         </button>
         <button
           type="button"
-          className={`min-h-12 rounded-xl text-base font-bold ${
-            mode === "login" ? "bg-white text-teal-900 shadow" : "text-stone-500"
+          className={`min-h-12 rounded-full text-base font-bold ${
+            mode === "login" ? "bg-white text-[var(--forest-deep)] shadow-sm" : "text-stone-500"
           }`}
           onClick={() => setMode("login")}
         >
-          लॉगिन
+          {t("login")}
         </button>
       </div>
 
@@ -228,8 +242,8 @@ export function NewsOnboarding() {
             required
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="आपका नाम"
-            className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
+            placeholder={t("yourName")}
+            className="input-field"
           />
         ) : null}
 
@@ -239,8 +253,8 @@ export function NewsOnboarding() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="ईमेल"
-          className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
+          placeholder={t("email")}
+          className="input-field"
         />
         <input
           required
@@ -249,8 +263,8 @@ export function NewsOnboarding() {
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={mode === "login" ? "पासवर्ड" : "पासवर्ड (कम से कम 6 अक्षर)"}
-          className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
+          placeholder={mode === "login" ? t("password") : t("passwordHint")}
+          className="input-field"
         />
 
         {mode === "register" ? (
@@ -262,43 +276,47 @@ export function NewsOnboarding() {
                 maxLength={6}
                 value={pincode}
                 onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="पिन कोड 276404"
-                className="min-h-14 flex-1 rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
+                placeholder={t("pincode")}
+                className="input-field flex-1"
               />
               <button
                 type="button"
                 onClick={() => pincode.length === 6 && fetchPin(pincode)}
-                className="min-h-14 rounded-2xl bg-teal-800 px-4 font-bold text-white"
+                className="btn-primary min-h-14 rounded-2xl px-4 font-bold"
               >
-                खोजें
+                {t("search")}
               </button>
             </div>
 
             <button
               type="button"
               onClick={() => void useGps()}
-              className="min-h-12 w-full rounded-2xl bg-white font-bold text-teal-900 shadow-sm"
+              className="min-h-12 w-full rounded-2xl bg-white font-bold text-[var(--forest-deep)] shadow-sm"
             >
-              📍 GPS से पता लगाएं
+              {t("gps")}
             </button>
 
             {lookup ? (
-              <div className="rounded-2xl bg-teal-50 p-3 text-sm font-semibold text-teal-950">
+              <div className="card rounded-2xl p-3 text-sm font-semibold text-[var(--forest-deep)]">
                 <p>{lookup.state}</p>
                 <p>{lookup.district}</p>
-                {villageMeta?.block ? <p>ब्लॉक: {villageMeta.block}</p> : null}
+                {villageMeta?.block ? (
+                  <p>
+                    {t("block")}: {villageMeta.block}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
             {lookup?.postOffices?.length ? (
               <label className="block">
                 <span className="mb-1 block text-sm font-semibold text-stone-600">
-                  डाकघर / इलाका (India Post)
+                  {t("postOffice")}
                 </span>
                 <select
                   value={postOffice}
                   onChange={(e) => void onPostOfficeChange(e.target.value)}
-                  className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-3 text-lg"
+                  className="input-field"
                 >
                   {lookup.postOffices.map((po) => (
                     <option key={po.name} value={po.name}>
@@ -313,31 +331,28 @@ export function NewsOnboarding() {
             {lookup ? (
               <label className="block">
                 <span className="mb-1 block text-sm font-semibold text-stone-600">
-                  गाँव का नाम
+                  {t("villageName")}
                 </span>
                 <select
                   required={villageChoice !== OTHER_VILLAGE}
                   value={villageChoice}
                   onChange={(e) => applyVillageChoice(e.target.value)}
-                  className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-3 text-lg"
+                  className="input-field"
                 >
                   {villages.map((v) => (
                     <option key={v} value={v}>
                       {v}
                     </option>
                   ))}
-                  <option value={OTHER_VILLAGE}>अन्य गाँव — खुद लिखें</option>
+                  <option value={OTHER_VILLAGE}>{t("otherVillage")}</option>
                 </select>
                 {villageChoice === OTHER_VILLAGE ? (
                   <input
                     required
                     value={customVillage}
-                    onChange={(e) => {
-                      setCustomVillage(e.target.value);
-                      setVillageName(e.target.value.trim());
-                    }}
-                    placeholder="जैसे नूरपुर सरैहजी"
-                    className="mt-2 min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
+                    onChange={(e) => applyVillageChoice(OTHER_VILLAGE, e.target.value)}
+                    placeholder={t("villageExample")}
+                    className="input-field mt-2"
                   />
                 ) : null}
               </label>
@@ -346,15 +361,13 @@ export function NewsOnboarding() {
                 required
                 value={villageName}
                 onChange={(e) => setVillageName(e.target.value)}
-                placeholder="पहले पिन कोड खोजें — फिर गाँव चुनें"
-                className="min-h-14 w-full rounded-2xl border-2 border-stone-200 bg-white px-4 text-lg"
+                placeholder={t("searchPinFirst")}
+                className="input-field"
               />
             )}
           </>
         ) : (
-          <p className="text-center text-sm font-semibold text-stone-500">
-            खाता बना चुके हैं? सिर्फ ईमेल और पासवर्ड से अंदर आएं।
-          </p>
+          <p className="text-center text-sm font-semibold text-stone-500">{t("loginHint")}</p>
         )}
 
         {error ? (
@@ -365,9 +378,9 @@ export function NewsOnboarding() {
 
         <button
           disabled={busy}
-          className="min-h-16 w-full rounded-2xl bg-teal-800 text-xl font-black text-white disabled:opacity-50"
+          className="btn-primary min-h-16 w-full rounded-2xl text-xl font-extrabold disabled:opacity-50"
         >
-          {busy ? "रुकिए…" : mode === "register" ? "खाता बनाएं" : "लॉगिन"}
+          {busy ? t("wait") : mode === "register" ? t("createAccount") : t("login")}
         </button>
       </form>
 

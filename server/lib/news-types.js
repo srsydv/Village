@@ -4,10 +4,19 @@ export function newId() {
   return nanoid(12);
 }
 
-export function villageRoom(pincode, villageName) {
-  return `village:${String(pincode)}:${String(villageName || "")
+export function foldVillage(name) {
+  return String(name || "")
+    .replace(/\s+/g, " ")
     .trim()
-    .toLowerCase()}`;
+    .toLocaleLowerCase("en-IN");
+}
+
+export function displayVillage(name) {
+  return String(name || "").replace(/\s+/g, " ").trim();
+}
+
+export function villageRoom(pincode, villageName) {
+  return `village:${String(pincode)}:${foldVillage(villageName)}`;
 }
 
 export function dmRoom(a, b) {
@@ -29,6 +38,7 @@ export function publicUser(user) {
     district: user.district,
     postOffice: user.postOffice,
     villageName: user.villageName,
+    avatarUrl: user.avatarUrl || "",
     lat: user.lat ?? null,
     lng: user.lng ?? null,
   };

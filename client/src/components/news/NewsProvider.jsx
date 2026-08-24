@@ -12,6 +12,7 @@ import {
   loadNewsSession,
   saveNewsSession,
 } from "../../lib/news/session.js";
+import { loadLang, localeFor, saveLang, translate, translateError } from "../../lib/i18n.js";
 import { connectNewsSocket, disconnectNewsSocket } from "../../lib/news/socket.js";
 
 const NewsContext = createContext(null);
@@ -21,6 +22,22 @@ export function NewsProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
   const [socketLive, setSocketLive] = useState(false);
+  const [lang, setLangState] = useState(() => loadLang() || "");
+
+  const setLang = useCallback((next) => {
+    const value = next === "en" ? "en" : "hi";
+    saveLang(value);
+    setLangState(value);
+    document.documentElement.lang = value === "en" ? "en" : "hi";
+  }, []);
+
+  useEffect(() => {
+    if (lang) document.documentElement.lang = lang === "en" ? "en" : "hi";
+  }, [lang]);
+
+  const t = useCallback((key) => translate(lang || "hi", key), [lang]);
+  const te = useCallback((message) => translateError(lang || "hi", message), [lang]);
+  const locale = localeFor(lang || "hi");
 
   const setSession = useCallback((s) => {
     saveNewsSession(s);
@@ -84,8 +101,13 @@ export function NewsProvider({ children }) {
       socketLive,
       setSession,
       logout,
+      lang,
+      setLang,
+      t,
+      te,
+      locale,
     }),
-    [session, loading, alert, socketLive, setSession, logout],
+    [session, loading, alert, socketLive, setSession, logout, lang, setLang, t, te, locale],
   );
 
   return <NewsContext.Provider value={value}>{children}</NewsContext.Provider>;
