@@ -112,6 +112,7 @@ export async function createUser(input) {
     villageName: displayVillage(input.villageName),
     villageKey: foldVillage(input.villageName),
     avatarUrl: "",
+    bio: "",
     savedPostIds: [],
     lat: input.lat ?? null,
     lng: input.lng ?? null,
@@ -153,6 +154,9 @@ export async function updateUser(id, patch) {
   }
   if (patch.avatarUrl !== undefined) {
     updates.avatarUrl = String(patch.avatarUrl || "");
+  }
+  if (patch.bio !== undefined) {
+    updates.bio = String(patch.bio || "").trim().slice(0, 160);
   }
   if (!Object.keys(updates).length) return findUserById(id);
 
@@ -750,6 +754,8 @@ export async function addMessage(input) {
     fromName: input.fromName,
     text: input.text || "",
     audioUrl: input.audioUrl || "",
+    mediaUrl: input.mediaUrl || "",
+    mediaType: input.mediaType || "none",
     sharedPost: input.sharedPost || null,
     createdAt: new Date().toISOString(),
   };

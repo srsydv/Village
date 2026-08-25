@@ -54,6 +54,7 @@ import {
   updateUser,
 } from "../lib/news-store.js";
 import { dmRoom, groupRoom, publicUser, villageRoom } from "../lib/news-types.js";
+import { askAboutPost, suggestChatReply } from "../lib/openai.js";
 import { emitChat, emitVillageAlert } from "../realtime.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -214,6 +215,7 @@ router.patch("/me", async (req, res) => {
   try {
     const updated = await updateUser(user._id, {
       displayName: req.body.displayName,
+      bio: req.body.bio,
     });
     return res.json({ user: publicUser(updated) });
   } catch (err) {
@@ -533,6 +535,38 @@ router.post("/posts/:id/send", async (req, res) => {
   return res.json({ message: msg, roomId, peerId });
 });
 
+router.post("/ai/ask-post", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  try {
+    const postId = String(req.body.postId || "");
+    const question = String(req.body.question || "");
+    const post = await getPost(postId);
+    if (!post) return res.status(404).json({ error: "पोस्ट नहीं मिली" });
+    const lang = String(req.body.lang || "hi") === "en" ? "en" : "hi";
+    const answer = await askAboutPost({ question, post, lang });
+    return res.json({ answer });
+  } catch (err) {
+    console.error("ai ask-post", err);
+    return res.status(err.status || 500).json({ error: err.message || "AI जवाब नहीं मिला" });
+  }
+});
+
+router.post("/ai/suggest-reply", async (req, res) => {
+  const user = await currentUser(req, res);
+  if (!user) return;
+  try {
+    const lang = String(req.body.lang || "hi") === "en" ? "en" : "hi";
+    const peerName = String(req.body.peerName || "");
+    const lastMessages = Array.isArray(req.body.messages) ? req.body.messages.slice(-8) : [];
+    const suggestion = await suggestChatReply({ lastMessages, peerName, lang });
+    return res.json({ suggestion });
+  } catch (err) {
+    console.error("ai suggest-reply", err);
+    return res.status(err.status || 500).json({ error: err.message || "AI जवाब नहीं मिला" });
+  }
+});
+
 router.get("/posts/:id/comments", async (req, res) => {
   const user = await currentUser(req, res);
   if (!user) return;
@@ -719,14 +753,25 @@ router.get("/chat", async (req, res) => {
   return res.json({ roomId, messages, title, kind, members });
 });
 
-router.post("/chat", upload.single("audio"), async (req, res) => {
+router.post("/chat", upload.fields([{ name: "audio", maxCount: 1 }, { name: "image", maxCount: 1 }]), async (req, res) => {
   const user = await currentUser(req, res);
   if (!user) return;
   const peerId = String(req.body.peerId || "");
   const groupId = String(req.body.groupId || "");
   const text = String(req.body.text || "").trim();
-  const audioUrl = publicUrl(req.file);
-  if (!text && !audioUrl) {
+  const audioFile = req.files?.audio?.[0];
+  const imageFile = req.files?.image?.[0];
+  const audioUrl = publicUrl(audioFile);
+  let mediaUrl = "";
+  let mediaType = "none";
+  if (imageFile) {
+    if (!String(imageFile.mimetype || "").startsWith("image/")) {
+      return res.status(400).json({ error: "केवल फोटो लगाएं" });
+    }
+    mediaUrl = publicUrl(imageFile);
+    mediaType = "image";
+  }
+  if (!text && !audioUrl && !mediaUrl) {
     return res.status(400).json({ error: "संदेश लिखें" });
   }
   let roomId = villageRoom(user.pincode, user.villageName);
@@ -750,6 +795,8 @@ router.post("/chat", upload.single("audio"), async (req, res) => {
     fromName: user.displayName,
     text,
     audioUrl,
+    mediaUrl,
+    mediaType,
   });
   emitChat(roomId, msg, extraUserIds);
   return res.json({ message: msg, roomId });

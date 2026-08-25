@@ -39,6 +39,7 @@ export function publicUser(user) {
     postOffice: user.postOffice,
     villageName: user.villageName,
     avatarUrl: user.avatarUrl || "",
+    bio: user.bio || "",
     lat: user.lat ?? null,
     lng: user.lng ?? null,
   };

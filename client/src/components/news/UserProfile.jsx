@@ -64,6 +64,7 @@ export function UserProfile() {
           <Avatar name={profile.displayName} src={profile.avatarUrl} size="xl" ring />
           <div className="min-w-0 flex-1">
             <p className="truncate text-xl font-extrabold text-[var(--ink)]">{profile.displayName}</p>
+            {profile.bio ? <p className="mt-0.5 text-sm leading-snug text-stone-700">{profile.bio}</p> : null}
             <p className="truncate text-sm text-stone-500">{profile.villageName}</p>
             <p className="truncate text-xs text-stone-400">
               {profile.district} · {t("pinLabel")} {profile.pincode}
@@ -79,9 +80,17 @@ export function UserProfile() {
 
         <div className="mt-4 flex gap-2">
           {isSelf ? (
-            <Link to="/news/profile" className="btn-primary flex min-h-11 flex-1 items-center justify-center rounded-xl text-sm font-bold">
-              {t("editProfile")}
-            </Link>
+            <>
+              <Link to="/news/profile?edit=1" className="btn-primary flex min-h-11 flex-1 items-center justify-center rounded-xl text-sm font-bold">
+                {t("editProfile")}
+              </Link>
+              <Link
+                to="/news/compose"
+                className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-black/5 text-sm font-bold text-[var(--ink)]"
+              >
+                {t("navCompose")}
+              </Link>
+            </>
           ) : (
             <>
               <button

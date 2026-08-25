@@ -91,6 +91,8 @@ export function PostCard({ post, token, onChange, locale }) {
   const viewed = useRef(false);
   const [open, setOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
   const [liked, setLiked] = useState(post.liked);
@@ -245,15 +247,15 @@ export function PostCard({ post, token, onChange, locale }) {
             {post.villageName} · {new Date(post.createdAt).toLocaleString(locale)}
           </p>
         </Link>
-        <button type="button" onClick={() => void share()} className="ig-icon" aria-label={t("share")}>
+        <button type="button" onClick={() => setMoreOpen(true)} className="ig-icon" aria-label={t("more")}>
           <IconMore />
         </button>
       </div>
 
       {post.mediaType === "image" && post.mediaUrl ? (
-        <Link to={`/news/post/${post._id}`} className="block">
+        <button type="button" className="block w-full" onClick={() => setAskOpen(true)}>
           <img src={post.mediaUrl} alt="" className="max-h-[32rem] w-full bg-black object-contain" />
-        </Link>
+        </button>
       ) : null}
       {post.mediaType === "video" && post.mediaUrl ? (
         <video src={post.mediaUrl} controls playsInline className="max-h-[32rem] w-full bg-black" />
@@ -369,6 +371,30 @@ export function PostCard({ post, token, onChange, locale }) {
           }}
         />
       ) : null}
+
+      {moreOpen ? (
+        <MoreSheet
+          onClose={() => setMoreOpen(false)}
+          onAsk={() => {
+            setMoreOpen(false);
+            setAskOpen(true);
+          }}
+          onShare={() => {
+            setMoreOpen(false);
+            void share();
+          }}
+          onOpenPost={() => {
+            setMoreOpen(false);
+            navigate(`/news/post/${post._id}`);
+          }}
+          onProfile={() => {
+            setMoreOpen(false);
+            navigate(`/news/u/${post.isRepost ? post.originalAuthorId || post.authorId : post.authorId}`);
+          }}
+        />
+      ) : null}
+
+      {askOpen ? <AskAiSheet post={post} token={token} onClose={() => setAskOpen(false)} /> : null}
     </article>
   );
 }
@@ -432,6 +458,122 @@ function IconMore() {
       <circle cx="12" cy="12" r="1.6" />
       <circle cx="19" cy="12" r="1.6" />
     </svg>
+  );
+}
+
+function MoreSheet({ onClose, onAsk, onShare, onOpenPost, onProfile }) {
+  const { t } = useNews();
+  const items = [
+    { label: t("askAi"), action: onAsk },
+    { label: t("postDetail"), action: onOpenPost },
+    { label: t("viewProfile"), action: onProfile },
+    { label: t("share"), action: onShare },
+  ];
+  return (
+    <div className="sheet-backdrop" onClick={onClose} role="presentation">
+      <div className="sheet-panel" onClick={(e) => e.stopPropagation()} role="dialog">
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
+        <p className="mb-2 text-center text-sm font-extrabold text-[var(--ink)]">{t("more")}</p>
+        <ul className="divide-y divide-[var(--line)]">
+          {items.map((item) => (
+            <li key={item.label}>
+              <button type="button" onClick={item.action} className="min-h-12 w-full text-left text-sm font-bold text-[var(--ink)]">
+                {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button type="button" onClick={onClose} className="mt-2 min-h-11 w-full rounded-xl bg-black/5 text-sm font-bold">
+          {t("close")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AskAiSheet({ post, token, onClose }) {
+  const { t, te, lang } = useNews();
+  const [q, setQ] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const starters = [t("askWhat"), t("askSummary"), t("askSafe")];
+
+  async function ask(question) {
+    const text = String(question || q).trim();
+    if (text.length < 2) return;
+    setBusy(true);
+    setError("");
+    setAnswer("");
+    try {
+      const res = await fetch("/api/news/ai/ask-post", {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post._id, question: text, lang }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || t("aiFailed"));
+      setAnswer(data.answer || "");
+      setQ(text);
+    } catch (err) {
+      setError(te(err.message));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose} role="presentation">
+      <div className="sheet-panel max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog">
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-base font-extrabold text-[var(--ink)]">{t("askAi")}</p>
+          <button type="button" onClick={onClose} className="text-sm font-bold text-stone-400">
+            {t("close")}
+          </button>
+        </div>
+        {post.mediaType === "image" && post.mediaUrl ? (
+          <img src={post.mediaUrl} alt="" className="mb-3 max-h-40 w-full rounded-xl object-cover" />
+        ) : null}
+        {post.text ? <p className="mb-3 line-clamp-3 text-sm text-stone-600">{post.text}</p> : null}
+        <div className="mb-3 flex flex-wrap gap-2">
+          {starters.map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={busy}
+              onClick={() => void ask(s)}
+              className="rounded-full bg-black/5 px-3 py-1.5 text-xs font-bold text-[var(--forest-deep)]"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void ask();
+          }}
+        >
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("askPlaceholder")}
+            className="input-field min-h-11 flex-1"
+          />
+          <button disabled={busy} className="btn-primary min-h-11 rounded-xl px-4 text-sm font-bold">
+            {busy ? "…" : t("ask")}
+          </button>
+        </form>
+        {error ? <p className="mt-3 text-sm font-semibold text-red-800">{error}</p> : null}
+        {answer ? (
+          <div className="mt-3 rounded-2xl bg-[var(--cream)] px-3 py-3 text-sm leading-relaxed text-[var(--ink)] whitespace-pre-wrap">
+            {answer}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

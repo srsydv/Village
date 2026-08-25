@@ -8,6 +8,7 @@ import { useNews } from "./NewsProvider.jsx";
 function previewOf(msg, t) {
   if (!msg) return t("noChatYet");
   if (msg.sharedPost) return t("sharedPost");
+  if (msg.mediaType === "image" && msg.mediaUrl) return t("photoMessage");
   if (msg.text) return msg.text;
   if (msg.audioUrl) return t("voiceNote");
   return t("message");
@@ -360,7 +361,7 @@ export function ChatInbox() {
 }
 
 export function ChatThread() {
-  const { token, user, socketLive, t, te, locale } = useNews();
+  const { token, user, socketLive, t, te, locale, lang } = useNews();
   const navigate = useNavigate();
   const { peerId, groupId } = useParams();
   const [search] = useSearchParams();
@@ -373,6 +374,11 @@ export function ChatThread() {
   const [addError, setAddError] = useState("");
   const [text, setText] = useState("");
   const [rec, setRec] = useState(null);
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+  const imageInputRef = useRef(null);
   const bottomRef = useRef(null);
   const customGroup = Boolean(groupId && groupId !== "village");
   const villageGroup = groupId === "village";
@@ -421,23 +427,47 @@ export function ChatThread() {
     if (peerId) body.append("peerId", peerId);
     if (groupId) body.append("groupId", groupId);
     if (audioFile) body.append("audio", audioFile);
-    if (!text.trim() && !audioFile) return;
+    if (imageFile) body.append("image", imageFile);
+    if (!text.trim() && !audioFile && !imageFile) return;
+    setChatError("");
     const res = await fetch("/api/news/chat", {
       method: "POST",
       headers: authHeaders(token),
       body,
     });
-    if (res.ok) {
-      const data = await res.json();
-      setText("");
-      if (data.message) {
-        setMessages((prev) => (prev.some((m) => m._id === data.message._id) ? prev : [...prev, data.message]));
-      }
-      if (data.roomId) {
-        setRoomId(data.roomId);
-        joinChatRoom(data.roomId);
-      }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setChatError(te(data.error) || t("sendFailed"));
+      return;
     }
+    setText("");
+    clearImage();
+    if (data.message) {
+      setMessages((prev) => (prev.some((m) => m._id === data.message._id) ? prev : [...prev, data.message]));
+    }
+    if (data.roomId) {
+      setRoomId(data.roomId);
+      joinChatRoom(data.roomId);
+    }
+  }
+
+  function clearImage() {
+    setImageFile(null);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview("");
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  }
+
+  function pickImage(file) {
+    if (!file) return;
+    if (!String(file.type || "").startsWith("image/")) {
+      setChatError(t("photoFailed"));
+      return;
+    }
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+    setChatError("");
   }
 
   async function startVoice() {
@@ -454,6 +484,36 @@ export function ChatThread() {
     };
     recorder.start();
     setRec(recorder);
+  }
+
+  async function suggestReply() {
+    setSuggestBusy(true);
+    setChatError("");
+    try {
+      const res = await fetch("/api/news/ai/suggest-reply", {
+        method: "POST",
+        headers: { ...authHeaders(token), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lang,
+          peerName: title,
+          messages: messages.slice(-8).map((m) => ({
+            fromName: m.fromName,
+            text: m.text,
+            audioUrl: m.audioUrl,
+            mediaType: m.mediaType,
+            sharedPost: Boolean(m.sharedPost),
+          })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || t("aiFailed"));
+      if (data.suggestion) setText(data.suggestion);
+      else setChatError(t("aiFailed"));
+    } catch (err) {
+      setChatError(te(err.message) || t("aiFailed"));
+    } finally {
+      setSuggestBusy(false);
+    }
   }
 
   return (
@@ -596,6 +656,11 @@ export function ChatThread() {
                     </div>
                   </button>
                 ) : null}
+                {m.mediaType === "image" && m.mediaUrl ? (
+                  <a href={m.mediaUrl} target="_blank" rel="noreferrer" className="mt-1 block overflow-hidden rounded-xl">
+                    <img src={m.mediaUrl} alt="" className="max-h-56 w-full object-cover" />
+                  </a>
+                ) : null}
                 {m.text && !m.sharedPost ? <p className="whitespace-pre-wrap text-[15px] leading-snug">{m.text}</p> : null}
                 {m.text && m.sharedPost && m.text !== `📰 ${m.sharedPost.authorName}` ? (
                   <p className="mt-1 whitespace-pre-wrap text-[15px] leading-snug">{m.text}</p>
@@ -613,30 +678,70 @@ export function ChatThread() {
       </ul>
 
       <form
-        className="glass flex gap-2 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="glass flex flex-col gap-2 px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
         onSubmit={(e) => {
           e.preventDefault();
           void send();
         }}
       >
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t("writeMessage")}
-          className="min-h-12 flex-1 rounded-full bg-white px-4"
-        />
-        {rec ? (
-          <button type="button" onClick={() => rec.stop()} className="min-h-12 rounded-full bg-red-700 px-4 font-bold text-white">
-            {t("stop")}
+        {chatError ? <p className="px-2 text-xs font-semibold text-red-800">{chatError}</p> : null}
+        {imagePreview ? (
+          <div className="relative mx-1 w-fit">
+            <img src={imagePreview} alt="" className="h-20 w-20 rounded-xl object-cover" />
+            <button
+              type="button"
+              onClick={clearImage}
+              className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white"
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
+        <div className="flex items-center gap-2 px-1">
+          <button
+            type="button"
+            disabled={suggestBusy}
+            onClick={() => void suggestReply()}
+            className="rounded-full bg-black/5 px-3 py-1.5 text-xs font-bold text-[var(--forest-deep)] disabled:opacity-40"
+          >
+            {suggestBusy ? t("suggesting") : t("suggestReply")}
           </button>
-        ) : (
-          <button type="button" onClick={() => void startVoice()} className="min-h-12 rounded-full bg-stone-700 px-3 text-white">
-            🎤
+        </div>
+        <div className="flex gap-2">
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => pickImage(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className="min-h-12 rounded-full bg-stone-200 px-3 text-lg"
+            aria-label={t("sendPhoto")}
+          >
+            🖼
           </button>
-        )}
-        <button type="submit" className="btn-primary min-h-12 rounded-full px-4 font-extrabold">
-          ➤
-        </button>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t("writeMessage")}
+            className="min-h-12 flex-1 rounded-full bg-white px-4"
+          />
+          {rec ? (
+            <button type="button" onClick={() => rec.stop()} className="min-h-12 rounded-full bg-red-700 px-4 font-bold text-white">
+              {t("stop")}
+            </button>
+          ) : (
+            <button type="button" onClick={() => void startVoice()} className="min-h-12 rounded-full bg-stone-700 px-3 text-white">
+              🎤
+            </button>
+          )}
+          <button type="submit" className="btn-primary min-h-12 rounded-full px-4 font-extrabold">
+            ➤
+          </button>
+        </div>
       </form>
     </div>
   );

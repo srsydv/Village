@@ -153,6 +153,23 @@ export const STRINGS = {
     postsCount: "पोस्ट",
     repostsTab: "रीपोस्ट",
     emptyProfile: "अभी कोई पोस्ट नहीं",
+    bio: "बायो",
+    bioHint: "अपने बारे में लिखें…",
+    shareProfile: "शेयर",
+    savedShort: "सेव",
+    more: "और",
+    askAi: "AI से पूछें",
+    ask: "पूछें",
+    askPlaceholder: "इस फोटो/खबर के बारे में पूछें…",
+    askWhat: "इस फोटो में क्या है?",
+    askSummary: "संक्षेप में बताओ",
+    askSafe: "क्या यह सही जानकारी लगती है?",
+    aiFailed: "AI जवाब नहीं मिला",
+    aiQuota: "OpenAI कोटा खत्म — बिलिंग/प्लान चेक करें",
+    suggestReply: "AI जवाब सुझाएँ",
+    suggesting: "सोच रहे हैं…",
+    sendPhoto: "फोटो भेजें",
+    photoMessage: "📷 फोटो",
   },
   en: {
     appName: "News",
@@ -306,6 +323,23 @@ export const STRINGS = {
     postsCount: "Posts",
     repostsTab: "Reposts",
     emptyProfile: "No posts yet",
+    bio: "Bio",
+    bioHint: "Write something about you…",
+    shareProfile: "Share",
+    savedShort: "Saved",
+    more: "More",
+    askAi: "Ask AI",
+    ask: "Ask",
+    askPlaceholder: "Ask about this photo/post…",
+    askWhat: "What's in this photo?",
+    askSummary: "Summarize this",
+    askSafe: "Does this look accurate?",
+    aiFailed: "AI reply failed",
+    aiQuota: "OpenAI quota exceeded — check billing/plan",
+    suggestReply: "Suggest reply",
+    suggesting: "Thinking…",
+    sendPhoto: "Send photo",
+    photoMessage: "📷 Photo",
   },
 };
 
@@ -339,6 +373,13 @@ const ERROR_MAP = {
   "फाइल बहुत बड़ी है (अधिकतम 25 MB)": "fileTooBig",
   "सर्वर त्रुटि": "serverDown",
   "सत्र समाप्त": "sessionExpired",
+  "OpenAI key missing": "aiFailed",
+  "AI reply failed": "aiFailed",
+  "Empty AI reply": "aiFailed",
+  "AI जवाब नहीं मिला": "aiFailed",
+  "सवाल लिखें": "askPlaceholder",
+  "You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.": "aiQuota",
+  "संदेश लिखें": "writeMessage",
 };
 
 export function loadLang() {
@@ -362,9 +403,13 @@ export function translate(lang, key) {
 
 export function translateError(lang, message) {
   if (!message) return "";
-  if (lang !== "en") return message;
-  const key = ERROR_MAP[message];
-  return key ? translate("en", key) : message;
+  const raw = String(message);
+  let key = ERROR_MAP[raw];
+  if (!key && /exceeded your current quota/i.test(raw)) key = "aiQuota";
+  if (!key && /insufficient_quota|billing details/i.test(raw)) key = "aiQuota";
+  if (key) return translate(lang || "hi", key);
+  if (lang === "en") return raw;
+  return raw;
 }
 
 export function localeFor(lang) {
