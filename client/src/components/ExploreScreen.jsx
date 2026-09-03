@@ -1,11 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, DESTINATIONS } from "../lib/destinations.js";
-import { useTravel } from "../lib/TravelContext.jsx";
 
 export function ExploreScreen() {
   const navigate = useNavigate();
-  const { profile } = useTravel();
   const [active, setActive] = useState("all");
   const [q, setQ] = useState("");
 
@@ -52,13 +50,7 @@ export function ExploreScreen() {
             key={d.id}
             type="button"
             className={`card relative overflow-hidden rounded-[1.35rem] text-left ${i === 0 ? "col-span-2" : ""}`}
-            onClick={() =>
-              navigate(
-                `/ask?q=${encodeURIComponent(
-                  `Help me travel to ${d.name}, ${d.country}. Cover best time (${d.season}), a ${profile.currency} budget from about ${d.from}, 3 hotels, food, and a 5-day plan.`,
-                )}`,
-              )
-            }
+            onClick={() => navigate(`/choose?q=${encodeURIComponent(`${d.name}, ${d.country}`)}`)}
           >
             <img src={d.image} alt="" className={i === 0 ? "h-44 w-full object-cover" : "h-36 w-full object-cover"} />
             <div className="absolute inset-0 bg-gradient-to-t from-[#070B14] via-transparent to-transparent" />

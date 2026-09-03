@@ -55,6 +55,13 @@ export function HomeScreen() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <button
+            type="button"
+            className="rounded-xl border border-[var(--line)] px-3 py-2 text-xs text-[#d8d2c6]"
+            onClick={() => navigate(`/choose?q=${encodeURIComponent(query.trim() || featured.name)}`)}
+          >
+            Pick
+          </button>
           <button type="submit" className="btn-gold rounded-xl px-3 py-2 text-xs font-semibold">
             Ask
           </button>
@@ -72,18 +79,19 @@ export function HomeScreen() {
             {ask.label}
           </button>
         ))}
+        <button
+          type="button"
+          className="shrink-0 rounded-full border border-[var(--line)] bg-[rgba(20,28,47,0.7)] px-3.5 py-2 text-xs text-[#d8d2c6]"
+          onClick={() => navigate(`/choose?q=${encodeURIComponent(featured.name)}`)}
+        >
+          Pick hotels & food
+        </button>
       </div>
 
       <button
         type="button"
         className="card relative mt-6 w-full overflow-hidden rounded-[1.7rem] text-left"
-        onClick={() =>
-          navigate(
-            `/ask?q=${encodeURIComponent(
-              `I want to visit ${featured.name}, ${featured.country}. Give me the best time to go, a realistic ${profile.currency} budget, 3 hotel picks, and a 5-day plan.`,
-            )}`,
-          )
-        }
+        onClick={() => navigate(`/choose?q=${encodeURIComponent(`${featured.name}, ${featured.country}`)}`)}
       >
         <img src={featured.image} alt="" className="h-56 w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#070B14] via-[#070B14]/25 to-transparent" />

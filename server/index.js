@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
 import travelRouter from "./routes/travel.js";
+import placesRouter from "./routes/places.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT_DIR, ".env") });
@@ -24,6 +25,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/travel", travelRouter);
+app.use("/api/places", placesRouter);
 
 app.use((err, _req, res, next) => {
   if (res.headersSent) return next(err);

@@ -48,6 +48,13 @@ export async function askAurea({ messages, profile, onDelta }) {
   return full;
 }
 
+export async function fetchPlaces(query) {
+  const res = await fetch(`/api/places?q=${encodeURIComponent(query)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not load places for that destination.");
+  return data;
+}
+
 export async function createPlan(payload) {
   const res = await fetch("/api/travel/plan", {
     method: "POST",

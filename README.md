@@ -26,9 +26,11 @@ The Vite client proxies `/api` to the Express server on port 3001. The key stays
 ## What the app does
 
 - **Ask** — free-form concierge chat (destinations, budgets, hotels, visas, packing)
-- **Plan** — structured itinerary with expense split and hotel tiers
-- **Explore** — curated places; tap any city to start a brief
-- **Trips** — saved plans on the device
+- **Plan** — Gemini itinerary, then pick real stays / food / sights
+- **Explore / Choose** — live listings from OpenStreetMap; Book / Zomato / Maps links
+- **Trips** — saved plans and your selected picks on the device
+
+Free place APIs (no extra keys): Nominatim + Overpass (OSM), Open-Meteo weather, Wikipedia summary. Booking.com, Airbnb, and Zomato are opened as partner search links — they do not take payment inside Aurea.
 
 ## Play Store
 

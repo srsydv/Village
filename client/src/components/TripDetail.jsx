@@ -1,5 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { pickCount } from "../lib/links.js";
 import { useTravel } from "../lib/TravelContext.jsx";
+import { PlaceCard, WeatherStrip } from "./PlacePicker.jsx";
 
 export function TripDetail() {
   const { id } = useParams();
@@ -7,8 +9,9 @@ export function TripDetail() {
   const { trips, removeTrip } = useTravel();
   const trip = trips.find((t) => t.id === id);
   const plan = trip?.plan;
+  const picks = trip?.picks;
 
-  if (!trip || !plan) {
+  if (!trip || (!plan && !picks)) {
     return (
       <div className="safe-top px-5">
         <p className="mt-10 text-sm text-[var(--muted)]">This trip is no longer saved.</p>
@@ -19,20 +22,40 @@ export function TripDetail() {
     );
   }
 
-  const budgetEntries = Object.entries(plan.budget || {}).filter(([, v]) => v);
+  const budgetEntries = Object.entries(plan?.budget || {}).filter(([, v]) => v);
+  const city = plan?.destination || picks?.stay?.city || "";
+  const selected = [picks?.stay, ...(picks?.food || []), ...(picks?.sights || [])].filter(Boolean);
 
   return (
     <div className="safe-top safe-bottom px-5 pb-8">
       <button type="button" className="text-sm text-[var(--gold)]" onClick={() => navigate(-1)}>
         ← Back
       </button>
-      <p className="kicker mt-4">{plan.country || "Itinerary"}</p>
-      <h1 className="serif mt-1 text-[2.15rem] leading-tight font-semibold">{plan.title || plan.destination}</h1>
+      <p className="kicker mt-4">{plan?.country || "Itinerary"}</p>
+      <h1 className="serif mt-1 text-[2.15rem] leading-tight font-semibold">{plan?.title || plan?.destination || city}</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        {plan.duration}
-        {plan.bestTime ? ` · Best ${plan.bestTime}` : ""}
+        {plan?.duration}
+        {plan?.bestTime ? ` · Best ${plan.bestTime}` : ""}
+        {pickCount(picks) ? ` · ${pickCount(picks)} picks` : ""}
       </p>
-      {plan.summary && <p className="mt-4 text-[0.95rem] leading-relaxed text-[#d8d2c6]">{plan.summary}</p>}
+      {plan?.summary && <p className="mt-4 text-[0.95rem] leading-relaxed text-[#d8d2c6]">{plan.summary}</p>}
+      {trip.weather && <div className="mt-4"><WeatherStrip weather={trip.weather} /></div>}
+
+      {selected.length > 0 && (
+        <section className="mt-6">
+          <div className="flex items-end justify-between">
+            <h2 className="serif text-2xl font-semibold">Your picks</h2>
+            <Link to={`/choose?q=${encodeURIComponent(city)}&trip=${trip.id}`} className="text-xs text-[var(--gold)]">
+              Change
+            </Link>
+          </div>
+          <div className="mt-3 space-y-2">
+            {selected.map((place) => (
+              <PlaceCard key={place.id} place={place} city={city} selected compact />
+            ))}
+          </div>
+        </section>
+      )}
 
       {budgetEntries.length > 0 && (
         <section className="card mt-6 rounded-[1.4rem] p-4">
@@ -48,7 +71,7 @@ export function TripDetail() {
         </section>
       )}
 
-      {plan.hotels?.length > 0 && (
+      {plan?.hotels?.length > 0 && (
         <section className="mt-7">
           <h2 className="serif text-2xl font-semibold">Stays</h2>
           <div className="mt-3 space-y-3">
@@ -72,7 +95,7 @@ export function TripDetail() {
         </section>
       )}
 
-      {plan.days?.length > 0 && (
+      {plan?.days?.length > 0 && (
         <section className="mt-7">
           <h2 className="serif text-2xl font-semibold">Days</h2>
           <div className="mt-3 space-y-3">
@@ -91,19 +114,19 @@ export function TripDetail() {
         </section>
       )}
 
-      {plan.food?.length > 0 && <BulletBlock title="Taste" items={plan.food} />}
-      {plan.packing?.length > 0 && <BulletBlock title="Pack" items={plan.packing} />}
-      {plan.tips?.length > 0 && <BulletBlock title="Concierge notes" items={plan.tips} />}
-      {plan.visa && (
+      {plan?.food?.length > 0 && <BulletBlock title="Taste" items={plan.food} />}
+      {plan?.packing?.length > 0 && <BulletBlock title="Pack" items={plan.packing} />}
+      {plan?.tips?.length > 0 && <BulletBlock title="Concierge notes" items={plan.tips} />}
+      {plan?.visa && (
         <section className="card mt-6 rounded-[1.3rem] p-4">
           <p className="kicker">Visa & papers</p>
-          <p className="mt-2 text-sm leading-relaxed text-[#d8d2c6]">{plan.visa}</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#d8d2c6]">{plan?.visa}</p>
         </section>
       )}
-      {plan.safety && (
+      {plan?.safety && (
         <section className="card mt-3 rounded-[1.3rem] p-4">
           <p className="kicker">Safety</p>
-          <p className="mt-2 text-sm leading-relaxed text-[#d8d2c6]">{plan.safety}</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#d8d2c6]">{plan?.safety}</p>
         </section>
       )}
 

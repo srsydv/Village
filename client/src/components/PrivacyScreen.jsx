@@ -49,7 +49,8 @@ export function PrivacyScreen() {
       <section className="card mt-8 rounded-[1.4rem] p-4 text-sm leading-relaxed text-[#d8d2c6]">
         <p className="kicker">Privacy</p>
         <p className="mt-3">
-          Aurea sends your questions to Google Gemini so it can answer travel questions. Your name, city, and currency
+          Aurea sends your questions to Google Gemini so it can answer travel questions. Hotel, restaurant, and
+          sight listings come from OpenStreetMap. Weather comes from Open-Meteo. Your name, city, and currency
           stay on this device. Chat and trip history are stored only in your browser or phone — not on Aurea servers.
         </p>
         <p className="mt-3">

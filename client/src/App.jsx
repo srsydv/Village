@@ -4,6 +4,7 @@ import { ChatScreen } from "./components/ChatScreen.jsx";
 import { ExploreScreen } from "./components/ExploreScreen.jsx";
 import { HomeScreen } from "./components/HomeScreen.jsx";
 import { Onboarding } from "./components/Onboarding.jsx";
+import { ChooseScreen } from "./components/ChooseScreen.jsx";
 import { PlanScreen } from "./components/PlanScreen.jsx";
 import { PrivacyScreen } from "./components/PrivacyScreen.jsx";
 import { ServiceWorkerRegister } from "./components/ServiceWorkerRegister.jsx";
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/" element={<HomeScreen />} />
             <Route path="/explore" element={<ExploreScreen />} />
             <Route path="/plan" element={<PlanScreen />} />
+            <Route path="/choose" element={<ChooseScreen />} />
             <Route path="/trips" element={<TripsScreen />} />
             <Route path="/trips/:id" element={<TripDetail />} />
             <Route path="/ask" element={<ChatScreen />} />

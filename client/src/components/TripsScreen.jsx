@@ -26,10 +26,11 @@ export function TripsScreen() {
               <h2 className="serif mt-1 text-2xl font-semibold leading-tight">
                 {trip.plan?.title || trip.plan?.destination}
               </h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">
-                {trip.plan?.duration || ""}
-                {trip.plan?.budget?.total ? ` · ${trip.plan.budget.total}` : ""}
-              </p>
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  {trip.plan?.duration || ""}
+                  {trip.plan?.budget?.total ? ` · ${trip.plan.budget.total}` : ""}
+                  {trip.picks?.stay ? ` · ${trip.picks.stay.name}` : ""}
+                </p>
             </Link>
           ))}
         </div>
