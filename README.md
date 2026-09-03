@@ -32,7 +32,13 @@ The Vite client proxies `/api` to the Express server on port 3001. The key stays
 
 Free place APIs (no extra keys): Nominatim + Overpass (OSM), Open-Meteo weather, Wikipedia summary. Booking.com, Airbnb, and Zomato are opened as partner search links — they do not take payment inside Aurea.
 
-## Play Store
+## Test APK
+
+```bash
+npm run apk
+```
+
+The file is written to `release/Aurea-testing.apk`. Send that to testers. On Android they open the file, allow **Install unknown apps** for Files/Drive/WhatsApp, then Install. The phone needs internet. This is a debug build for testing, not a Play Store release.
 
 Aurea is a mobile-first PWA (`standalone` display, portrait, dark theme). To publish on Google Play:
 

@@ -1,4 +1,17 @@
+import { generateDirect, hasDirectGemini } from "./geminiDirect.js";
+import { lookupDestinationDirect } from "./placesDirect.js";
+import { PLAN_JSON_INSTRUCTIONS, SYSTEM_PROMPT, parsePlanJson, planBrief, profileLine } from "./prompts.js";
+
 export async function askAurea({ messages, profile, onDelta }) {
+  if (hasDirectGemini()) {
+    const { text } = await generateDirect({
+      messages: messages.slice(-16),
+      system: SYSTEM_PROMPT + profileLine(profile),
+    });
+    onDelta?.(text, text);
+    return text;
+  }
+
   const res = await fetch("/api/travel/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -49,6 +62,9 @@ export async function askAurea({ messages, profile, onDelta }) {
 }
 
 export async function fetchPlaces(query) {
+  if (hasDirectGemini()) {
+    return lookupDestinationDirect(query);
+  }
   const res = await fetch(`/api/places?q=${encodeURIComponent(query)}`);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Could not load places for that destination.");
@@ -56,6 +72,19 @@ export async function fetchPlaces(query) {
 }
 
 export async function createPlan(payload) {
+  if (hasDirectGemini()) {
+    const { text } = await generateDirect({
+      messages: [{ role: "user", content: planBrief(payload) }],
+      system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(payload.profile)}`,
+      json: true,
+    });
+    try {
+      return parsePlanJson(text);
+    } catch {
+      throw new Error("Aurea drafted a plan but it could not be formatted. Please try again.");
+    }
+  }
+
   const res = await fetch("/api/travel/plan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
