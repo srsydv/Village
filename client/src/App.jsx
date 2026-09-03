@@ -1,38 +1,37 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { AppShell } from "./components/AppShell.jsx";
+import { ChatScreen } from "./components/ChatScreen.jsx";
+import { ExploreScreen } from "./components/ExploreScreen.jsx";
+import { HomeScreen } from "./components/HomeScreen.jsx";
+import { Onboarding } from "./components/Onboarding.jsx";
+import { PlanScreen } from "./components/PlanScreen.jsx";
+import { PrivacyScreen } from "./components/PrivacyScreen.jsx";
 import { ServiceWorkerRegister } from "./components/ServiceWorkerRegister.jsx";
-import { ChatInbox, ChatThread } from "./components/news/ChatScreen.jsx";
-import { ComposePost } from "./components/news/ComposePost.jsx";
-import { NewsShell } from "./components/news/NewsShell.jsx";
-import { OfficialFeed } from "./components/news/OfficialFeed.jsx";
-import { ProfileScreen } from "./components/news/ProfileScreen.jsx";
-import { PostDetail } from "./components/news/PostDetail.jsx";
-import { UserProfile } from "./components/news/UserProfile.jsx";
-import { VillageFeed } from "./components/news/VillageFeed.jsx";
+import { TripDetail } from "./components/TripDetail.jsx";
+import { TripsScreen } from "./components/TripsScreen.jsx";
+import { useTravel } from "./lib/TravelContext.jsx";
 
 export default function App() {
+  const { ready } = useTravel();
+
   return (
-    <>
-      <ServiceWorkerRegister />
-      <Routes>
-        <Route path="/" element={<Navigate to="/news" replace />} />
-        <Route path="/news" element={<NewsShell />}>
-          <Route index element={<VillageFeed />} />
-          <Route path="official" element={<OfficialFeed />} />
-          <Route path="compose" element={<ComposePost />} />
-          <Route path="profile" element={<ProfileScreen />} />
-          <Route path="saved" element={<VillageFeed savedOnly />} />
-          <Route path="post/:postId" element={<PostDetail />} />
-          <Route path="u/:userId" element={<UserProfile />} />
-          <Route path="chat" element={<ChatInbox />} />
-          <Route path="chat/dm/:peerId" element={<ChatThread />} />
-          <Route path="chat/group/:groupId" element={<ChatThread />} />
-        </Route>
-        <Route path="/samooh/*" element={<Navigate to="/news" replace />} />
-        <Route path="/seva/*" element={<Navigate to="/news" replace />} />
-        <Route path="/group" element={<Navigate to="/news" replace />} />
-        <Route path="/entry" element={<Navigate to="/news" replace />} />
-        <Route path="/history" element={<Navigate to="/news" replace />} />
-      </Routes>
-    </>
+    <div className="app-frame">
+      <div className="phone-shell">
+        <ServiceWorkerRegister />
+        <Routes>
+          <Route path="/welcome" element={ready ? <Navigate to="/" replace /> : <Onboarding />} />
+          <Route path="/privacy" element={<PrivacyScreen />} />
+          <Route element={ready ? <AppShell /> : <Navigate to="/welcome" replace />}>
+            <Route path="/" element={<HomeScreen />} />
+            <Route path="/explore" element={<ExploreScreen />} />
+            <Route path="/plan" element={<PlanScreen />} />
+            <Route path="/trips" element={<TripsScreen />} />
+            <Route path="/trips/:id" element={<TripDetail />} />
+            <Route path="/ask" element={<ChatScreen />} />
+          </Route>
+          <Route path="*" element={<Navigate to={ready ? "/" : "/welcome"} replace />} />
+        </Routes>
+      </div>
+    </div>
   );
 }

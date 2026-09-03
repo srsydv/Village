@@ -1,12 +1,5 @@
-const CACHE = "village-v4";
-const PRECACHE = [
-  "/",
-  "/news",
-  "/news/official",
-  "/news/compose",
-  "/news/chat",
-  "/manifest.webmanifest",
-];
+const CACHE = "aurea-v1";
+const PRECACHE = ["/", "/explore", "/plan", "/trips", "/ask", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -21,9 +14,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-      )
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -37,7 +28,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req).catch(
         () =>
-          new Response(JSON.stringify({ error: "offline" }), {
+          new Response(JSON.stringify({ error: "You are offline. Aurea needs a connection to answer." }), {
             status: 503,
             headers: { "Content-Type": "application/json" },
           }),
@@ -53,8 +44,6 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE).then((cache) => cache.put(req, copy));
         return res;
       })
-      .catch(() =>
-        caches.match(req).then((cached) => cached || caches.match("/")),
-      ),
+      .catch(() => caches.match(req).then((cached) => cached || caches.match("/"))),
   );
 });

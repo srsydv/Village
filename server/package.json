@@ -1,6 +1,6 @@
 {
-  "name": "village-server",
-  "version": "0.1.0",
+  "name": "aurea-server",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,13 +8,8 @@
     "start": "NODE_ENV=production node index.js"
   },
   "dependencies": {
-    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
-    "express": "^5.1.0",
-    "mongodb": "^7.5.0",
-    "multer": "^2.2.0",
-    "nanoid": "^5.1.5",
-    "socket.io": "^4.8.3"
+    "express": "^5.1.0"
   }
 }

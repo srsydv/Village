@@ -1,0 +1,11 @@
+{
+  "appId": "com.aurea.travel",
+  "appName": "Aurea",
+  "webDir": "client/dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

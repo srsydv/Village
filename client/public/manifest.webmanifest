@@ -1,12 +1,13 @@
 {
-  "name": "Village — समाचार",
-  "short_name": "Village",
-  "description": "गाँव की सरकारी खबर और पड़ोसियों की आवाज़",
-  "start_url": "/news",
+  "name": "Aurea — Travel Concierge",
+  "short_name": "Aurea",
+  "description": "Ask for destinations, expenses, hotels, and day-by-day travel plans before you fly.",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#f3ece0",
-  "theme_color": "#0e5c54",
-  "lang": "hi",
+  "orientation": "portrait",
+  "background_color": "#070B14",
+  "theme_color": "#070B14",
+  "lang": "en",
   "icons": [
     {
       "src": "/icon-192.png",

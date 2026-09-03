@@ -1,45 +1,56 @@
-# Village
+# Aurea
 
-Hyper-local **समाचार (News)** for rural communities: email/password accounts, PIN/GPS village onboarding, official district feed (in-app reader), village UGC posts (photo/video/voice), likes/comments, Socket.io village alerts and chat.
+Private AI travel concierge. Ask for destinations, expenses, hotels, visas, packing, and day-by-day plans before you fly. Powered by Google Gemini.
 
-Open [http://127.0.0.1:5173](http://127.0.0.1:5173). **Full guidebook:** [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
-
-## How to use
-
-1. **खाता बनाएं** with name, **email**, **password**, and **6-digit PIN code** (e.g. `276404`) or **GPS**.
-2. App looks up state/district/post offices via `api.postalpincode.in`, then you confirm **गाँव का नाम**. Later visits: **लॉगिन** with email + password only.
-3. **सरकारी** — district/state/India.gov notices + in-app reader (no external browser).
-4. **घर / लिखें** — village feed; post text + camera/video/voice; auto-tagged to village + PIN.
-5. Likes, text/audio comments; top banner when neighbors post (WebSocket).
-6. **बात** — village group chat or 1:1 with people in the same village.
-
-## Stack
-
-- **Frontend:** Vite + React (JavaScript) — camera/mic via browser APIs (PWA)
-- **Backend:** Node.js + Express + Socket.io
-- **Database:** MongoDB when `MONGODB_URI` is set (else `.data/*.json`)
-- **Media:** local `.data/uploads/news/` (swap to S3/Cloudinary later)
-- **Address:** Indian Postal PIN API + OpenStreetMap Nominatim reverse geocode
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173).
 
 ## Run locally
+
+1. Put your Gemini key in `.env` (never commit it):
+
+```
+GEMINI_API_KEY=your_key
+GEMINI_MODEL=gemini-flash-latest
+PORT=3001
+```
+
+2. Install and start:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite proxies `/api`, `/uploads`, and `/socket.io` to port 3001.
+The Vite client proxies `/api` to the Express server on port 3001. The key stays on the server and is never shipped to the phone.
 
-## Screens
+## What the app does
 
-| Route | Screen |
-| --- | --- |
-| `/` | Redirects to `/news` |
-| `/news` | Village UGC feed |
-| `/news/official` | Official / PIN feed |
-| `/news/compose` | Citizen reporter |
-| `/news/chat` | Village / DM chat |
+- **Ask** — free-form concierge chat (destinations, budgets, hotels, visas, packing)
+- **Plan** — structured itinerary with expense split and hotel tiers
+- **Explore** — curated places; tap any city to start a brief
+- **Trips** — saved plans on the device
 
-## Out of scope (v1)
+## Play Store
 
-UPI, NRLM sync, native Bluetooth mesh, Cloudinary/S3 (disk uploads today), dialects beyond Hindi UI.
+Aurea is a mobile-first PWA (`standalone` display, portrait, dark theme). To publish on Google Play:
+
+1. Host the API (`npm run build && npm start`) on a public HTTPS host and keep `GEMINI_API_KEY` in the server environment.
+2. Point Capacitor at that host, or serve the built client from the same origin.
+3. Install Android tooling, then:
+
+```bash
+npm install @capacitor/core @capacitor/cli @capacitor/android
+npx cap add android
+npx cap sync
+npx cap open android
+```
+
+4. In Play Console, use package `com.aurea.travel`, 512×512 icon, feature graphic, and a public privacy policy URL (the in-app page is `/privacy`).
+5. Restrict the Gemini key to your backend IPs / HTTP referrers. Do not embed the key in the Android APK.
+
+## Stack
+
+- Frontend: Vite + React + Tailwind
+- Backend: Node.js + Express
+- Model: Google Gemini (`x-goog-api-key`)
+- Storage: device `localStorage` for profile, chats, and trips
