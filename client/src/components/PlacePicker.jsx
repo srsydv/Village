@@ -33,7 +33,7 @@ export function PlacePicker({ catalog, picks, onToggle, tab, onTab }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-[var(--muted)]">
-        {tab === "stays" && "Tap one stay. Then Book opens Booking.com or Airbnb."}
+        {tab === "stays" && "Tap one stay. Book opens Booking.com — live price there, estimate in the plan."}
         {tab === "food" && "Pick up to 5 places. Maps / Zomato open the listing."}
         {tab === "sights" && "Pick up to 6 sights to pin on your trip."}
       </p>
@@ -54,6 +54,10 @@ export function PlacePicker({ catalog, picks, onToggle, tab, onTab }) {
           ))
         )}
       </div>
+      <p className="mt-3 text-[0.65rem] leading-relaxed text-[var(--muted)]">
+        Map data © OpenStreetMap contributors (ODbL). Weather: Open-Meteo. Live hotel prices are on Booking / Airbnb, not
+        in this list.
+      </p>
     </div>
   );
 }

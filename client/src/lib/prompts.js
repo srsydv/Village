@@ -79,9 +79,14 @@ export function profileLine(profile) {
 }
 
 export function planBrief(payload) {
-  const { destination, days, travelers, budget, style, interests, notes, profile } = payload || {};
+  const { destination, country, days, startDate, endDate, travelers, budget, style, interests, notes, profile } =
+    payload || {};
   return [
     `Create a complete pre-travel plan for: ${String(destination || "").trim()}`,
+    country && `Country: ${country}`,
+    `Use this exact destination (city, region, country). Do not substitute a different place with a similar name.`,
+    startDate && `Trip starts: ${startDate}`,
+    endDate && `Trip ends: ${endDate}`,
     days && `Duration: ${days} days`,
     travelers && `Travelers: ${travelers}`,
     budget && `Budget: ${budget}`,

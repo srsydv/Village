@@ -1,0 +1,9 @@
+node_modules
+client/dist
+android
+release
+.git
+.env
+.env.local
+*.jks
+keystore.properties

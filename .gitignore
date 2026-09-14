@@ -37,6 +37,11 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Play upload key (local)
+/android/*.jks
+/android/*.keystore
+/android/keystore.properties
+
 # local file-backed store when MONGODB_URI is unset
 /.data/
 

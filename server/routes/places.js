@@ -1,7 +1,22 @@
 import { Router } from "express";
-import { lookupDestination } from "../lib/places.js";
+import { lookupDestination, suggestPlaces } from "../lib/places.js";
 
 const router = Router();
+
+router.get("/suggest", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (q.length < 2) return res.json({ places: [] });
+  try {
+    const places = await suggestPlaces(q);
+    return res.json({ places });
+  } catch (err) {
+    const status = err.status === 400 ? err.status : 502;
+    return res.status(status).json({
+      error: err.message || "Could not look up that place.",
+      places: [],
+    });
+  }
+});
 
 router.get("/", async (req, res) => {
   const q = String(req.query.q || "").trim();

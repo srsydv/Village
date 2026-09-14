@@ -1,6 +1,11 @@
 import { generateDirect, hasDirectGemini } from "./geminiDirect.js";
-import { lookupDestinationDirect } from "./placesDirect.js";
+import { lookupDestinationDirect, suggestPlacesDirect } from "./placesDirect.js";
 import { PLAN_JSON_INSTRUCTIONS, SYSTEM_PROMPT, parsePlanJson, planBrief, profileLine } from "./prompts.js";
+
+function apiUrl(path) {
+  const base = String(import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
+  return `${base}${path}`;
+}
 
 export async function askAurea({ messages, profile, onDelta }) {
   if (hasDirectGemini()) {
@@ -12,7 +17,7 @@ export async function askAurea({ messages, profile, onDelta }) {
     return text;
   }
 
-  const res = await fetch("/api/travel/chat", {
+  const res = await fetch(apiUrl("/api/travel/chat"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages, profile, stream: true }),
@@ -61,11 +66,23 @@ export async function askAurea({ messages, profile, onDelta }) {
   return full;
 }
 
+export async function suggestPlaces(query) {
+  const q = String(query || "").trim();
+  if (q.length < 2) return [];
+  if (hasDirectGemini()) {
+    return suggestPlacesDirect(q);
+  }
+  const res = await fetch(apiUrl(`/api/places/suggest?q=${encodeURIComponent(q)}`));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not look up that place.");
+  return Array.isArray(data.places) ? data.places : [];
+}
+
 export async function fetchPlaces(query) {
   if (hasDirectGemini()) {
     return lookupDestinationDirect(query);
   }
-  const res = await fetch(`/api/places?q=${encodeURIComponent(query)}`);
+  const res = await fetch(apiUrl(`/api/places?q=${encodeURIComponent(query)}`));
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Could not load places for that destination.");
   return data;
@@ -85,7 +102,7 @@ export async function createPlan(payload) {
     }
   }
 
-  const res = await fetch("/api/travel/plan", {
+  const res = await fetch(apiUrl("/api/travel/plan"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

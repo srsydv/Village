@@ -63,7 +63,10 @@ router.post("/chat", async (req, res) => {
 router.post("/plan", async (req, res) => {
   const {
     destination,
+    country,
     days,
+    startDate,
+    endDate,
     travelers,
     budget,
     style,
@@ -78,6 +81,10 @@ router.post("/plan", async (req, res) => {
 
   const brief = [
     `Create a complete pre-travel plan for: ${String(destination).trim()}`,
+    country && `Country: ${country}`,
+    `Use this exact destination (city, region, country). Do not substitute a different place with a similar name.`,
+    startDate && `Trip starts: ${startDate}`,
+    endDate && `Trip ends: ${endDate}`,
     days && `Duration: ${days} days`,
     travelers && `Travelers: ${travelers}`,
     budget && `Budget: ${budget}`,

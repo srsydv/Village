@@ -110,6 +110,80 @@ function toPlace(el, city, origin) {
   };
 }
 
+function placeName(hit) {
+  const addr = hit.address || {};
+  return (
+    hit.name ||
+    addr.city ||
+    addr.town ||
+    addr.village ||
+    addr.municipality ||
+    addr.county ||
+    addr.state ||
+    ""
+  );
+}
+
+export function shortPlaceLabel(hit) {
+  const addr = hit.address || {};
+  const name = placeName(hit);
+  const state = addr.state || addr.region || "";
+  const country = addr.country || "";
+  const parts = [name];
+  const lower = (s) => String(s || "").toLowerCase();
+  if (state && lower(state) !== lower(name)) parts.push(state);
+  if (country && lower(country) !== lower(name) && lower(country) !== lower(state)) parts.push(country);
+  return parts.filter(Boolean).join(", ") || hit.display_name || "";
+}
+
+function isDestinationHit(hit) {
+  const cls = hit.class;
+  const type = hit.type;
+  if (cls === "place") return true;
+  if (cls === "boundary" && type === "administrative") return true;
+  if (cls === "natural" && ["island", "archipelago", "peninsula", "bay"].includes(type)) return true;
+  if (cls === "tourism" && ["attraction", "theme_park", "national_park"].includes(type)) return true;
+  return false;
+}
+
+function toSuggestion(hit, query) {
+  const addr = hit.address || {};
+  const name = placeName(hit) || query;
+  return {
+    id: String(hit.place_id || `${hit.lat},${hit.lon}`),
+    label: shortPlaceLabel(hit),
+    name,
+    city: addr.city || addr.town || addr.village || name,
+    state: addr.state || addr.region || "",
+    country: addr.country || "",
+    lat: Number(hit.lat),
+    lon: Number(hit.lon),
+  };
+}
+
+export async function suggestPlaces(query) {
+  const q = String(query || "").trim();
+  if (q.length < 2) return [];
+  return cached(`suggest:${q.toLowerCase()}`, async () => {
+    const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=jsonv2&addressdetails=1&limit=8&accept-language=en`;
+    const rows = await fetchJson(url);
+    const list = Array.isArray(rows) ? rows : [];
+    const preferred = list.filter(isDestinationHit);
+    const source = preferred.length ? preferred : list;
+    const seen = new Set();
+    const out = [];
+    for (const hit of source) {
+      const item = toSuggestion(hit, q);
+      const key = item.label.toLowerCase();
+      if (!item.label || seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+      if (out.length >= 6) break;
+    }
+    return out;
+  });
+}
+
 export async function geocode(query) {
   const q = String(query || "").trim();
   if (!q) {
@@ -118,7 +192,7 @@ export async function geocode(query) {
     throw err;
   }
   return cached(`geo:${q.toLowerCase()}`, async () => {
-    const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=json&limit=1&addressdetails=1`;
+    const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=jsonv2&addressdetails=1&limit=1&accept-language=en`;
     const rows = await fetchJson(url);
     const hit = rows?.[0];
     if (!hit) {
@@ -127,11 +201,12 @@ export async function geocode(query) {
       throw err;
     }
     const addr = hit.address || {};
+    const name = placeName(hit) || q;
     return {
       query: q,
-      name: hit.name || addr.city || addr.town || addr.village || q,
-      displayName: hit.display_name,
-      city: addr.city || addr.town || addr.village || addr.state_district || hit.name || q,
+      name,
+      displayName: shortPlaceLabel(hit) || hit.display_name,
+      city: addr.city || addr.town || addr.village || addr.state_district || name,
       country: addr.country || "",
       lat: Number(hit.lat),
       lon: Number(hit.lon),

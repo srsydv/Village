@@ -39,8 +39,17 @@ function run(cmd, args, extraEnv = {}, cwd = root) {
 loadEnv(".env");
 loadEnv(".env.local");
 
-if (!process.env.GEMINI_API_KEY) {
-  console.error("GEMINI_API_KEY is missing in .env — the test APK needs it to answer on a phone.");
+const publicUrl = String(process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
+if (!publicUrl.startsWith("https://")) {
+  console.error("Set PUBLIC_APP_URL to your live HTTPS origin, e.g. https://aurea.example.com");
+  console.error("Host the Node app first (Docker / Railway / Render). The Play bundle must not contain GEMINI_API_KEY.");
+  process.exit(1);
+}
+
+const androidDir = path.join(root, "android");
+const propsPath = path.join(androidDir, "keystore.properties");
+if (!fs.existsSync(propsPath)) {
+  console.error("No upload key yet. Run: npm run play:key");
   process.exit(1);
 }
 
@@ -62,15 +71,14 @@ process.env.PATH = [
   process.env.PATH,
 ].join(path.delimiter);
 
-console.log("This debug APK is for sideload testers only — not for Play Store.");
-console.log("Play Store: host the API, then npm run play:key && npm run play\n");
+console.log("Building web app for Play (no Gemini key in the bundle)…");
 await run("npm", ["run", "build", "-w", "client"], {
   VITE_CAPACITOR: "1",
-  VITE_GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-  VITE_GEMINI_MODEL: process.env.GEMINI_MODEL || "",
+  VITE_API_BASE: publicUrl,
+  VITE_GEMINI_API_KEY: "",
+  VITE_GEMINI_MODEL: "",
 });
 
-const androidDir = path.join(root, "android");
 if (!fs.existsSync(androidDir)) {
   console.log("Adding Android platform…");
   await run("npx", ["cap", "add", "android"]);
@@ -82,15 +90,22 @@ await run("npx", ["cap", "sync", "android"]);
 const localProps = path.join(androidDir, "local.properties");
 fs.writeFileSync(localProps, `sdk.dir=${androidHome.replaceAll("\\", "\\\\")}\n`);
 
-console.log("Assembling debug APK…");
+console.log("Bundling signed release AAB…");
 const gradlew = path.join(androidDir, "gradlew");
 fs.chmodSync(gradlew, 0o755);
-await run("./gradlew", ["assembleDebug"], { JAVA_HOME: javaHome, ANDROID_HOME: androidHome }, androidDir);
+await run("./gradlew", ["bundleRelease"], { JAVA_HOME: javaHome, ANDROID_HOME: androidHome }, androidDir);
 
-const built = path.join(androidDir, "app/build/outputs/apk/debug/app-debug.apk");
+const built = path.join(androidDir, "app/build/outputs/bundle/release/app-release.aab");
+if (!fs.existsSync(built)) {
+  console.error("Gradle did not produce app-release.aab. Check signing (npm run play:key).");
+  process.exit(1);
+}
+
 const outDir = path.join(root, "release");
 fs.mkdirSync(outDir, { recursive: true });
-const dest = path.join(outDir, "Aurea-testing.apk");
+const dest = path.join(outDir, "Aurea-play.aab");
 fs.copyFileSync(built, dest);
-console.log(`\nAPK ready:\n${dest}\n`);
-console.log("Send that file. On Android: open it, allow Install from this source, then Install.");
+console.log(`\nPlay bundle:\n${dest}\n`);
+console.log("Upload this AAB in Play Console (internal testing first).");
+console.log(`Privacy policy URL: ${publicUrl}/privacy.html`);
+console.log("Keep GEMINI_API_KEY only on the server. Do not put it in the Android app.");

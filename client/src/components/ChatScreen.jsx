@@ -10,7 +10,7 @@ export function ChatScreen() {
   const { profile, addChat } = useTravel();
   const [params, setParams] = useSearchParams();
   const incoming = params.get("q") || "";
-  const [chatId] = useState(() => getChats()[0]?.id || uid());
+  const [chatId, setChatId] = useState(() => getChats()[0]?.id || uid());
   const [messages, setMessages] = useState(() => getChats()[0]?.messages || []);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,9 +18,9 @@ export function ChatScreen() {
   const scroller = useRef(null);
   const asked = useRef(false);
 
-  const persist = (next) => {
+  const persist = (next, id = chatId) => {
     setMessages(next);
-    addChat({ id: chatId, updatedAt: Date.now(), messages: next });
+    addChat({ id, updatedAt: Date.now(), messages: next });
   };
 
   const send = async (text) => {
@@ -68,9 +68,25 @@ export function ChatScreen() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="safe-top px-5 pb-3">
-        <p className="kicker">Concierge</p>
-        <h1 className="serif text-[1.9rem] leading-tight font-semibold">Ask Aurea anything.</h1>
+      <header className="safe-top flex items-start justify-between px-5 pb-3">
+        <div>
+          <p className="kicker">Concierge</p>
+          <h1 className="serif text-[1.9rem] leading-tight font-semibold">Ask a question.</h1>
+        </div>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            className="mt-1 text-xs text-[var(--gold)]"
+            onClick={() => {
+              const id = uid();
+              setChatId(id);
+              persist([], id);
+              setError("");
+            }}
+          >
+            New chat
+          </button>
+        )}
       </header>
 
       <div ref={scroller} className="no-scrollbar flex-1 overflow-y-auto px-5 pb-2">
@@ -78,7 +94,7 @@ export function ChatScreen() {
           <div className="rise card mt-2 rounded-[1.5rem] p-5">
             <p className="serif text-2xl">Your private desk is open.</p>
             <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-              Destinations, expenses, hotels, visas, packing, weather, food — ask in your own words.
+              Short questions — visas, budgets, packing. For a full itinerary, use Plan.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {chips.map((c) => (

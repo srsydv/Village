@@ -10,7 +10,7 @@ const MODEL_FALLBACKS = [
 ];
 
 export function hasDirectGemini() {
-  return Boolean(import.meta.env.VITE_GEMINI_API_KEY);
+  return import.meta.env.DEV && Boolean(import.meta.env.VITE_GEMINI_API_KEY);
 }
 
 function apiKey() {

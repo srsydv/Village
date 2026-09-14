@@ -137,6 +137,6 @@ export const QUICK_ASKS = [
   { id: "money", label: "Trip budget", prompt: "Break down a realistic trip budget: flights, hotel, food, local travel, activities, and a buffer." },
   { id: "hotel", label: "Find hotels", prompt: "Suggest 3 hotels — value, balanced, and luxury — with area, nightly price, and who they suit." },
   { id: "plan", label: "Day-by-day plan", prompt: "Create a detailed day-by-day itinerary with morning, afternoon, evening, and estimated daily spend." },
-  { id: "visa", label: "Visa & documents", prompt: "What visas, documents, vaccinations, and forex should I arrange before this trip?" },
+  { id: "visa", label: "Visa & documents", prompt: "For my passport and this trip, what visa do I apply for myself, which official site, documents, timeline, and fee? Do not offer to file it." },
   { id: "pack", label: "What to pack", prompt: "Make a packing list for this trip by weather, dress code, and airline cabin rules." },
 ];

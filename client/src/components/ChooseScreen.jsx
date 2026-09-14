@@ -4,6 +4,7 @@ import { fetchPlaces } from "../lib/api.js";
 import { emptyPicks, pickCount, togglePick } from "../lib/links.js";
 import { uid } from "../lib/storage.js";
 import { useTravel } from "../lib/TravelContext.jsx";
+import { DestinationSuggest } from "./DestinationSuggest.jsx";
 import { PlacePicker, WeatherStrip } from "./PlacePicker.jsx";
 
 export function ChooseScreen() {
@@ -59,11 +60,14 @@ export function ChooseScreen() {
           load(query);
         }}
       >
-        <input
-          className="field"
-          placeholder="Jaipur, Goa, Kyoto…"
+        <DestinationSuggest
+          className="min-w-0 flex-1"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Start typing a city…"
+          onChange={setQuery}
+          onSelect={(place) => {
+            if (place?.label) load(place.label);
+          }}
         />
         <button type="submit" className="btn-gold shrink-0 rounded-2xl px-4 text-sm font-semibold" disabled={busy}>
           {busy ? "…" : "Find"}

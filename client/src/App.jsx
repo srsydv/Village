@@ -6,6 +6,7 @@ import { HomeScreen } from "./components/HomeScreen.jsx";
 import { Onboarding } from "./components/Onboarding.jsx";
 import { ChooseScreen } from "./components/ChooseScreen.jsx";
 import { PlanScreen } from "./components/PlanScreen.jsx";
+import { PrivacyPolicy } from "./components/PrivacyPolicy.jsx";
 import { PrivacyScreen } from "./components/PrivacyScreen.jsx";
 import { ServiceWorkerRegister } from "./components/ServiceWorkerRegister.jsx";
 import { TripDetail } from "./components/TripDetail.jsx";
@@ -21,7 +22,7 @@ export default function App() {
         <ServiceWorkerRegister />
         <Routes>
           <Route path="/welcome" element={ready ? <Navigate to="/" replace /> : <Onboarding />} />
-          <Route path="/privacy" element={<PrivacyScreen />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route element={ready ? <AppShell /> : <Navigate to="/welcome" replace />}>
             <Route path="/" element={<HomeScreen />} />
             <Route path="/explore" element={<ExploreScreen />} />
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/trips" element={<TripsScreen />} />
             <Route path="/trips/:id" element={<TripDetail />} />
             <Route path="/ask" element={<ChatScreen />} />
+            <Route path="/profile" element={<PrivacyScreen />} />
           </Route>
           <Route path="*" element={<Navigate to={ready ? "/" : "/welcome"} replace />} />
         </Routes>

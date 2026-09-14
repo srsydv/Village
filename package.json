@@ -12,7 +12,9 @@
     "dev:client": "npm run dev -w client",
     "build": "npm run build -w client",
     "start": "npm run start -w server",
-    "apk": "node scripts/build-apk.mjs"
+    "apk": "node scripts/build-apk.mjs",
+    "play:key": "node scripts/create-upload-key.mjs",
+    "play": "node scripts/build-aab.mjs"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.1",

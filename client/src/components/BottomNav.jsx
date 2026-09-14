@@ -2,7 +2,6 @@ import { NavLink } from "react-router-dom";
 
 const ITEMS = [
   { to: "/", label: "Home", icon: HomeIcon, end: true },
-  { to: "/explore", label: "Explore", icon: CompassIcon },
   { to: "/plan", label: "Plan", icon: PlanIcon },
   { to: "/trips", label: "Trips", icon: BagIcon },
   { to: "/ask", label: "Ask", icon: SparkIcon },
@@ -41,20 +40,6 @@ function HomeIcon({ active }) {
         d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"
         stroke={active ? "#E8C99A" : "#8B93A7"}
         strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function CompassIcon({ active }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="8.2" stroke={active ? "#E8C99A" : "#8B93A7"} strokeWidth="1.6" />
-      <path
-        d="m14.8 9.2-1.3 5.3-5.3 1.3 1.3-5.3 5.3-1.3Z"
-        stroke={active ? "#E8C99A" : "#8B93A7"}
-        strokeWidth="1.4"
         strokeLinejoin="round"
       />
     </svg>

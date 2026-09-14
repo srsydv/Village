@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CATEGORIES, DESTINATIONS } from "../lib/destinations.js";
+import { DestinationSuggest } from "./DestinationSuggest.jsx";
 
 export function ExploreScreen() {
   const navigate = useNavigate();
@@ -15,16 +16,26 @@ export function ExploreScreen() {
     });
   }, [q]);
 
+  const goPlan = (label) => {
+    const dest = String(label || "").trim();
+    if (!dest) return;
+    navigate(`/plan?q=${encodeURIComponent(dest)}`);
+  };
+
   return (
     <div className="safe-top safe-bottom px-5">
-      <p className="kicker">Explore</p>
-      <h1 className="serif mt-1 text-[2.1rem] leading-tight font-semibold">Places worth the passport stamp.</h1>
-      <input
-        className="field mt-5"
-        placeholder="Search Kyoto, Bali, Jaipur…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+      <p className="kicker">Ideas</p>
+      <h1 className="serif mt-1 text-[2.1rem] leading-tight font-semibold">Type any city, or tap a postcard.</h1>
+      <div className="mt-5">
+        <DestinationSuggest
+          value={q}
+          placeholder="Lucknow, Bali, Kyoto…"
+          onChange={setQ}
+          onSelect={(place) => {
+            if (place?.label) goPlan(place.label);
+          }}
+        />
+      </div>
 
       <div className="no-scrollbar mt-4 flex gap-2 overflow-x-auto">
         <Chip active={active === "all"} onClick={() => setActive("all")}>
@@ -34,10 +45,7 @@ export function ExploreScreen() {
           <Chip
             key={c.id}
             active={active === c.id}
-            onClick={() => {
-              setActive(c.id);
-              navigate(`/ask?q=${encodeURIComponent(c.prompt)}`);
-            }}
+            onClick={() => navigate(`/ask?q=${encodeURIComponent(c.prompt)}`)}
           >
             {c.label}
           </Chip>
@@ -50,7 +58,7 @@ export function ExploreScreen() {
             key={d.id}
             type="button"
             className={`card relative overflow-hidden rounded-[1.35rem] text-left ${i === 0 ? "col-span-2" : ""}`}
-            onClick={() => navigate(`/choose?q=${encodeURIComponent(`${d.name}, ${d.country}`)}`)}
+            onClick={() => goPlan(`${d.name}, ${d.country}`)}
           >
             <img src={d.image} alt="" className={i === 0 ? "h-44 w-full object-cover" : "h-36 w-full object-cover"} />
             <div className="absolute inset-0 bg-gradient-to-t from-[#070B14] via-transparent to-transparent" />
