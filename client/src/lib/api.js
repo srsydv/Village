@@ -1,7 +1,7 @@
 import { generateDirect, hasDirectGemini } from "./geminiDirect.js";
 import { lookupDestinationDirect, suggestPlacesDirect } from "./placesDirect.js";
 import { PLAN_JSON_INSTRUCTIONS, SYSTEM_PROMPT, parsePlanJson, planBrief, profileLine } from "./prompts.js";
-import { getProfile, getVisitorId } from "./storage.js";
+import { getAuthToken, getChats, getProfile, getTrips, getVisitorId } from "./storage.js";
 
 function apiUrl(path) {
   const base = String(import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
@@ -10,11 +10,80 @@ function apiUrl(path) {
 
 function activityHeaders() {
   const profile = getProfile();
+  const token = getAuthToken();
   return {
     "X-Aurea-Visitor": getVisitorId(),
     "X-Aurea-Name": profile.name || "",
     "X-Aurea-Home": profile.homeCity || "",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+export async function fetchAuthConfig() {
+  const res = await fetch(apiUrl("/api/auth/config"));
+  return res.json().catch(() => ({ enabled: false, googleClientId: "" }));
+}
+
+export async function signInWithGoogleCredential(credential) {
+  const profile = getProfile();
+  const res = await fetch(apiUrl("/api/auth/google"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      credential,
+      chats: getChats(),
+      trips: getTrips(),
+      name: profile.name,
+      homeCity: profile.homeCity,
+      currency: profile.currency,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Google sign-in failed.");
+  return data;
+}
+
+export async function fetchAccount() {
+  const token = getAuthToken();
+  if (!token) return null;
+  const res = await fetch(apiUrl("/api/auth/me"), { headers: activityHeaders() });
+  if (res.status === 401) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not load account.");
+  return data.user;
+}
+
+async function adminGet(path) {
+  const res = await fetch(apiUrl(path), { headers: activityHeaders() });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 403) throw new Error("Admin only.");
+  if (!res.ok) throw new Error(data.error || "Could not load admin data.");
+  return data;
+}
+
+export async function fetchAdminOverview() {
+  return adminGet("/api/admin/overview");
+}
+
+export async function fetchAdminUsers() {
+  return adminGet("/api/admin/users");
+}
+
+export async function fetchAdminUser(id) {
+  return adminGet(`/api/admin/users/${encodeURIComponent(id)}`);
+}
+
+export async function syncAccount(payload) {
+  const token = getAuthToken();
+  if (!token) return null;
+  const res = await fetch(apiUrl("/api/auth/me"), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not save account.");
+  return data.user;
 }
 
 export async function askAurea({ messages, profile, onDelta }) {

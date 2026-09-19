@@ -40,10 +40,14 @@ export function buildEvent(req, extra = {}) {
   return {
     at: new Date(),
     action: extra.action,
-    name: extra.name || name,
+    name: extra.name || name || clip(req.user?.email, 80),
     homeCity: extra.homeCity || homeCity,
+    email: clip(req.user?.email, 120).toLowerCase(),
     visitorId: visitorFrom(req),
     query: clip(extra.query, 200),
+    reply: extra.reply ? clip(extra.reply, 6000) : "",
+    plan: extra.plan || null,
+    places: extra.places || null,
     ok: extra.ok !== false,
     error: extra.error ? clip(extra.error, 180) : "",
     model: clip(extra.model, 60),
@@ -57,6 +61,7 @@ async function collection() {
   if (!indexesReady) {
     indexesReady = true;
     await col.createIndex({ at: 1 }, { expireAfterSeconds: TTL_SECONDS }).catch(() => {});
+    await col.createIndex({ email: 1, at: -1 }).catch(() => {});
   }
   return col;
 }
@@ -101,6 +106,37 @@ export async function listActivity(limit = 100) {
       }
     })
     .filter(Boolean);
+}
+
+function emailFilter(email) {
+  const key = String(email || "").trim().toLowerCase();
+  if (!key) return null;
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return { email: { $regex: `^${escaped}$`, $options: "i" } };
+}
+
+export async function listActivityForEmail(email, limit = 200) {
+  const filter = emailFilter(email);
+  if (!filter) return [];
+  const col = await collection();
+  if (col) {
+    return col.find(filter).sort({ at: -1 }).limit(Math.min(Number(limit) || 200, 400)).toArray();
+  }
+  const key = String(email || "").trim().toLowerCase();
+  const all = await listActivity(400);
+  return all.filter((row) => String(row.email || "").toLowerCase() === key).slice(0, limit);
+}
+
+export async function countActivity(filter = {}) {
+  const col = await collection();
+  if (col) return col.countDocuments(filter);
+  const all = await listActivity(400);
+  const since = filter.at?.$gte ? new Date(filter.at.$gte).getTime() : 0;
+  return all.filter((row) => {
+    if (filter.action && row.action !== filter.action) return false;
+    if (since && new Date(row.at).getTime() < since) return false;
+    return true;
+  }).length;
 }
 
 export function activityStoreKind() {

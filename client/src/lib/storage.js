@@ -4,6 +4,8 @@ const KEYS = {
   chats: "aurea.chats",
   onboarded: "aurea.onboarded",
   visitor: "aurea.visitor",
+  token: "aurea.token",
+  account: "aurea.account",
 };
 
 function read(key, fallback) {
@@ -37,6 +39,14 @@ export function isOnboarded() {
 
 export function setOnboarded() {
   localStorage.setItem(KEYS.onboarded, "1");
+}
+
+export function clearOnboarded() {
+  try {
+    localStorage.removeItem(KEYS.onboarded);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getTrips() {
@@ -81,4 +91,53 @@ export function getVisitorId() {
   } catch {
     return "";
   }
+}
+
+export function getAuthToken() {
+  try {
+    return localStorage.getItem(KEYS.token) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function getAccount() {
+  return read(KEYS.account, null);
+}
+
+export function saveSession({ token, user }) {
+  if (token) localStorage.setItem(KEYS.token, token);
+  write(KEYS.account, {
+    email: user?.email || "",
+    name: user?.name || "",
+    picture: user?.picture || "",
+    isAdmin: Boolean(user?.isAdmin),
+  });
+}
+
+export function clearSession() {
+  try {
+    localStorage.removeItem(KEYS.token);
+    localStorage.removeItem(KEYS.account);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function resetLocalUser() {
+  clearSession();
+  clearOnboarded();
+  write(KEYS.profile, { name: "", homeCity: "", currency: "INR" });
+  write(KEYS.chats, []);
+  write(KEYS.trips, []);
+}
+
+export function replaceChats(chats) {
+  write(KEYS.chats, Array.isArray(chats) ? chats.slice(0, 24) : []);
+  return getChats();
+}
+
+export function replaceTrips(trips) {
+  write(KEYS.trips, Array.isArray(trips) ? trips.slice(0, 40) : []);
+  return getTrips();
 }

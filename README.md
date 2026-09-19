@@ -23,7 +23,9 @@ npm run dev
 
 The Vite client proxies `/api` to the Express server on port 3001. The key stays on the server.
 
-Activity (who asked / planned what) is written to `.data/activity.jsonl` locally, or to MongoDB if `MONGODB_URI` is set. Open [http://127.0.0.1:3001/ops/activity?secret=YOUR_ACTIVITY_SECRET](http://127.0.0.1:3001/ops/activity?secret=YOUR_ACTIVITY_SECRET).
+Optional Google Sign-In: set `GOOGLE_CLIENT_ID` (and `AUTH_SECRET`) in `.env`. Signed-in chats and trips are stored in MongoDB.
+
+Activity (who asked / planned what) is written to `.data/activity.jsonl` locally, or to MongoDB if `MONGODB_URI` is set. Set `ADMIN_EMAIL` to the Google account that should open in-app Analysis at `/admin`. The older ops pages still work at [http://127.0.0.1:3001/ops/activity?secret=YOUR_ACTIVITY_SECRET](http://127.0.0.1:3001/ops/activity?secret=YOUR_ACTIVITY_SECRET).
 
 ## What the app does
 

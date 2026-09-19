@@ -27,9 +27,16 @@ export function PrivacyPolicy() {
         <section>
           <h2 className="serif text-xl font-semibold text-[var(--cream)]">What stays on your device</h2>
           <p className="mt-2">
-            Your name, home city, currency, chat history, and saved trips are stored in app storage on this phone
-            (browser local storage). We do not run a user account. Clearing app data or uninstalling deletes that
-            history unless you shared a copy.
+            Aurea also keeps a copy of your profile, chats, and trips on this phone so the app works offline. Logging
+            out clears that copy. Your account copy stays in our database until you ask us to delete it.
+          </p>
+        </section>
+        <section>
+          <h2 className="serif text-xl font-semibold text-[var(--cream)]">Google account</h2>
+          <p className="mt-2">
+            You must sign in with Google to use Aurea. Google shares your name, email, and profile photo. We store those
+            plus your chats and saved trips so they reload on another device. Log out from Profile. We do not get your
+            Google password.
           </p>
         </section>
         <section>
@@ -57,7 +64,9 @@ export function PrivacyPolicy() {
             <li>
               <strong className="text-[var(--gold-bright)]">Aurea activity log.</strong> Our server stores the name and
               home city you typed, a device id, timestamps, and what you asked or planned (destination or a short
-              question snippet). This is so we can operate the app. We do not sell it. Records are kept up to 90 days.
+              question snippet). Plan searches (destination, dates, travelers, budget, style) are stored even if you do
+              not tap Save. The operator account can review activity and chat transcripts to run the product. We do not
+              sell it. Records in the activity log are kept up to 90 days.
             </li>
           </ul>
           <p className="mt-2">

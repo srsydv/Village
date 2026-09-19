@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { logActivity, lastUserText } from "../lib/activity.js";
+import { logSearch } from "../lib/searches.js";
+import { planSnapshot } from "../lib/snapshot.js";
 import {
   PLAN_JSON_INSTRUCTIONS,
   SYSTEM_PROMPT,
@@ -38,20 +40,20 @@ router.post("/chat", async (req, res) => {
       res.setHeader("Connection", "keep-alive");
       res.flushHeaders?.();
 
-      const { model } = await streamTravelReply({
+      const { model, text } = await streamTravelReply({
         messages,
         system,
         onDelta: (delta) => {
           res.write(`data: ${JSON.stringify({ delta })}\n\n`);
         },
       });
-      logActivity(req, { action: "ask", query: lastUserText(messages), ok: true, model });
+      logActivity(req, { action: "ask", query: lastUserText(messages), reply: text, ok: true, model });
       res.write(`data: ${JSON.stringify({ done: true, model })}\n\n`);
       return res.end();
     }
 
     const { text, model } = await generateTravelReply({ messages, system });
-    logActivity(req, { action: "ask", query: lastUserText(messages), ok: true, model });
+    logActivity(req, { action: "ask", query: lastUserText(messages), reply: text, ok: true, model });
     return res.json({ text, model });
   } catch (err) {
     logActivity(req, {
@@ -113,17 +115,53 @@ router.post("/plan", async (req, res) => {
       json: true,
     });
     const plan = parsePlanJson(text);
+    const snapshot = planSnapshot(plan);
     logActivity(req, {
       action: "plan",
       query: String(destination).trim(),
       ok: true,
       model,
+      plan: snapshot,
+    });
+    logSearch(req, {
+      kind: "plan",
+      destination,
+      country,
+      days,
+      startDate,
+      endDate,
+      travelers,
+      budget,
+      style,
+      interests,
+      notes,
+      ok: true,
+      model,
+      resultTitle: plan.title || plan.destination,
+      resultDuration: plan.duration || plan.daysCount,
+      resultBudget: plan.expenses?.total || plan.budget?.total,
+      resultPlan: snapshot,
     });
     return res.json({ plan, model });
   } catch (err) {
     logActivity(req, {
       action: "plan",
       query: String(destination).trim(),
+      ok: false,
+      error: err.message,
+    });
+    logSearch(req, {
+      kind: "plan",
+      destination,
+      country,
+      days,
+      startDate,
+      endDate,
+      travelers,
+      budget,
+      style,
+      interests,
+      notes,
       ok: false,
       error: err.message,
     });

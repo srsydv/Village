@@ -70,6 +70,14 @@ select {
   box-shadow: 0 0 0 1px rgba(232, 201, 154, 0.06);
 }
 
+.phone-shell-admin {
+  max-width: 760px;
+  background:
+    radial-gradient(640px 320px at 12% -12%, rgba(201, 163, 106, 0.16), transparent 52%),
+    radial-gradient(520px 280px at 100% 0%, rgba(92, 219, 165, 0.06), transparent 48%),
+    #070b14;
+}
+
 .serif {
   font-family: var(--font-display);
 }

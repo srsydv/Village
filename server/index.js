@@ -3,9 +3,12 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import { optionalAuth } from "./lib/auth.js";
 import travelRouter from "./routes/travel.js";
 import placesRouter from "./routes/places.js";
 import activityRouter from "./routes/activity.js";
+import authRouter from "./routes/auth.js";
+import adminRouter from "./routes/admin.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT_DIR, ".env") });
@@ -44,7 +47,8 @@ app.use(
     },
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "2mb" }));
+app.use(optionalAuth);
 
 const buckets = new Map();
 app.use("/api/travel", (req, res, next) => {
@@ -69,9 +73,12 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     app: "aurea",
     gemini: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+    google: Boolean(process.env.GOOGLE_CLIENT_ID),
   });
 });
 
+app.use("/api/auth", authRouter);
+app.use("/api/admin", adminRouter);
 app.use(activityRouter);
 app.use("/api/travel", travelRouter);
 app.use("/api/places", placesRouter);

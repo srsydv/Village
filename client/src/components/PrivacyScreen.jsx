@@ -3,7 +3,7 @@ import { useTravel } from "../lib/TravelContext.jsx";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
 
 export function PrivacyScreen() {
-  const { profile, updateProfile } = useTravel();
+  const { profile, updateProfile, account, signOut } = useTravel();
 
   return (
     <div className="safe-top safe-bottom px-5">
@@ -13,6 +13,37 @@ export function PrivacyScreen() {
       <p className="kicker mt-5">You</p>
       <h1 className="serif mt-1 text-[2.1rem] font-semibold">Profile</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">Used for budgets and “departing from” in every plan.</p>
+
+      <div className="card mt-6 rounded-[1.4rem] p-4">
+        <div className="flex items-center gap-3">
+          {account?.picture ? (
+            <img src={account.picture} alt="" className="h-11 w-11 rounded-full" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="grid h-11 w-11 place-items-center rounded-full border border-[var(--line)] text-sm text-[var(--gold-bright)]">
+              {(account?.name || profile.name || "A").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm text-[var(--cream)]">{account?.name || profile.name}</p>
+            <p className="truncate text-xs text-[var(--muted)]">{account?.email}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="mt-4 w-full rounded-2xl border border-[var(--rose)] py-3 text-sm font-semibold text-[var(--rose)]"
+          onClick={signOut}
+        >
+          Log out
+        </button>
+        {account?.isAdmin && (
+          <Link
+            to="/admin"
+            className="mt-3 block w-full rounded-2xl border border-[var(--line)] py-3 text-center text-sm font-semibold text-[var(--gold-bright)]"
+          >
+            Analysis & user activity
+          </Link>
+        )}
+      </div>
 
       <div className="mt-6 space-y-3">
         <label className="block">
@@ -50,10 +81,10 @@ export function PrivacyScreen() {
         <p className="kicker">Privacy</p>
         <p className="mt-3">
           Aurea sends your questions and plan details to our server, then to Google Gemini, so it can answer. Hotel,
-          restaurant, and sight lookups go to OpenStreetMap. Weather comes from Open-Meteo. Your name, city, currency,
-          chats, and saved trips stay on this device — not in an Aurea login. We also keep an activity log on our
-          server (name, home city, destination or question snippet) so we can see usage. Clearing app data deletes
-          on-device history, not that log.
+          restaurant, and sight lookups go to OpenStreetMap. Weather comes from Open-Meteo. You must sign in with
+          Google to use Aurea. We store your email, name, chats, and saved trips so they reload on another device. Log
+          out from Profile. We also keep an activity log, and plan searches (destination, dates, budget) even if you do
+          not save the trip. The operator can review chats to run Aurea.
         </p>
         <p className="mt-3">
           Clearing site data deletes saved trips. Share a trip from the trip screen if you want a copy. We do not sell
