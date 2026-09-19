@@ -51,7 +51,9 @@ export function PrivacyScreen() {
         <p className="mt-3">
           Aurea sends your questions and plan details to our server, then to Google Gemini, so it can answer. Hotel,
           restaurant, and sight lookups go to OpenStreetMap. Weather comes from Open-Meteo. Your name, city, currency,
-          chats, and saved trips stay on this device — not in an Aurea account. Clearing app data deletes that history.
+          chats, and saved trips stay on this device — not in an Aurea login. We also keep an activity log on our
+          server (name, home city, destination or question snippet) so we can see usage. Clearing app data deletes
+          on-device history, not that log.
         </p>
         <p className="mt-3">
           Clearing site data deletes saved trips. Share a trip from the trip screen if you want a copy. We do not sell

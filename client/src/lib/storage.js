@@ -3,6 +3,7 @@ const KEYS = {
   trips: "aurea.trips",
   chats: "aurea.chats",
   onboarded: "aurea.onboarded",
+  visitor: "aurea.visitor",
 };
 
 function read(key, fallback) {
@@ -68,4 +69,16 @@ export function saveChat(chat) {
 
 export function uid() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function getVisitorId() {
+  try {
+    const existing = localStorage.getItem(KEYS.visitor);
+    if (existing) return existing;
+    const id = uid();
+    localStorage.setItem(KEYS.visitor, id);
+    return id;
+  } catch {
+    return "";
+  }
 }

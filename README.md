@@ -23,6 +23,8 @@ npm run dev
 
 The Vite client proxies `/api` to the Express server on port 3001. The key stays on the server.
 
+Activity (who asked / planned what) is written to `.data/activity.jsonl` locally, or to MongoDB if `MONGODB_URI` is set. Open [http://127.0.0.1:3001/ops/activity?secret=YOUR_ACTIVITY_SECRET](http://127.0.0.1:3001/ops/activity?secret=YOUR_ACTIVITY_SECRET).
+
 ## What the app does
 
 - **Ask** — short concierge questions

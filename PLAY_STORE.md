@@ -57,7 +57,7 @@ Upload that file. Do not upload `Aurea-testing.apk` (debug, and it may embed a k
 
 Collected / shared:
 
-- **App activity / chat text** — sent to Google Gemini to generate answers. Not sold. Not used for ads.
+- **App activity / chat text** — sent to Google Gemini to generate answers. A short copy (name, destination or question snippet, time) is also stored on Aurea’s server for up to 90 days to operate the app. Not sold. Not used for ads.
 - **Location** — not collected as GPS. Destination names you type are sent to OpenStreetMap and Open-Meteo.
 - **Financial info** — not collected. Hotel booking happens on Booking.com / Airbnb.
 - **Account** — none.

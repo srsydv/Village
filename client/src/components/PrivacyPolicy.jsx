@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-const UPDATED = "14 September 2026";
+const UPDATED = "19 September 2026";
 
 export function PrivacyPolicy() {
   return (
@@ -53,6 +53,11 @@ export function PrivacyPolicy() {
             <li>
               <strong className="text-[var(--gold-bright)]">Wikipedia.</strong> The city name may be used to fetch a
               short public summary.
+            </li>
+            <li>
+              <strong className="text-[var(--gold-bright)]">Aurea activity log.</strong> Our server stores the name and
+              home city you typed, a device id, timestamps, and what you asked or planned (destination or a short
+              question snippet). This is so we can operate the app. We do not sell it. Records are kept up to 90 days.
             </li>
           </ul>
           <p className="mt-2">

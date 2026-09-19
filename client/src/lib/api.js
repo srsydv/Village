@@ -1,10 +1,20 @@
 import { generateDirect, hasDirectGemini } from "./geminiDirect.js";
 import { lookupDestinationDirect, suggestPlacesDirect } from "./placesDirect.js";
 import { PLAN_JSON_INSTRUCTIONS, SYSTEM_PROMPT, parsePlanJson, planBrief, profileLine } from "./prompts.js";
+import { getProfile, getVisitorId } from "./storage.js";
 
 function apiUrl(path) {
   const base = String(import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
   return `${base}${path}`;
+}
+
+function activityHeaders() {
+  const profile = getProfile();
+  return {
+    "X-Aurea-Visitor": getVisitorId(),
+    "X-Aurea-Name": profile.name || "",
+    "X-Aurea-Home": profile.homeCity || "",
+  };
 }
 
 export async function askAurea({ messages, profile, onDelta }) {
@@ -19,8 +29,8 @@ export async function askAurea({ messages, profile, onDelta }) {
 
   const res = await fetch(apiUrl("/api/travel/chat"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, profile, stream: true }),
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ messages, profile, stream: true, visitorId: getVisitorId() }),
   });
 
   if (!res.ok) {
@@ -72,7 +82,9 @@ export async function suggestPlaces(query) {
   if (hasDirectGemini()) {
     return suggestPlacesDirect(q);
   }
-  const res = await fetch(apiUrl(`/api/places/suggest?q=${encodeURIComponent(q)}`));
+  const res = await fetch(apiUrl(`/api/places/suggest?q=${encodeURIComponent(q)}`), {
+    headers: activityHeaders(),
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Could not look up that place.");
   return Array.isArray(data.places) ? data.places : [];
@@ -82,7 +94,9 @@ export async function fetchPlaces(query) {
   if (hasDirectGemini()) {
     return lookupDestinationDirect(query);
   }
-  const res = await fetch(apiUrl(`/api/places?q=${encodeURIComponent(query)}`));
+  const res = await fetch(apiUrl(`/api/places?q=${encodeURIComponent(query)}`), {
+    headers: activityHeaders(),
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Could not load places for that destination.");
   return data;
@@ -104,8 +118,8 @@ export async function createPlan(payload) {
 
   const res = await fetch(apiUrl("/api/travel/plan"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ ...payload, visitorId: getVisitorId() }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Aurea could not build this plan.");

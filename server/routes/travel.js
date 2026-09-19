@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { logActivity, lastUserText } from "../lib/activity.js";
 import {
   PLAN_JSON_INSTRUCTIONS,
   SYSTEM_PROMPT,
@@ -44,13 +45,21 @@ router.post("/chat", async (req, res) => {
           res.write(`data: ${JSON.stringify({ delta })}\n\n`);
         },
       });
+      logActivity(req, { action: "ask", query: lastUserText(messages), ok: true, model });
       res.write(`data: ${JSON.stringify({ done: true, model })}\n\n`);
       return res.end();
     }
 
     const { text, model } = await generateTravelReply({ messages, system });
+    logActivity(req, { action: "ask", query: lastUserText(messages), ok: true, model });
     return res.json({ text, model });
   } catch (err) {
+    logActivity(req, {
+      action: "ask",
+      query: lastUserText(messages),
+      ok: false,
+      error: err.message,
+    });
     const status = err.status || 500;
     if (res.headersSent) {
       res.write(`data: ${JSON.stringify({ error: err.message || "Aurea could not reply." })}\n\n`);
@@ -104,8 +113,20 @@ router.post("/plan", async (req, res) => {
       json: true,
     });
     const plan = parsePlanJson(text);
+    logActivity(req, {
+      action: "plan",
+      query: String(destination).trim(),
+      ok: true,
+      model,
+    });
     return res.json({ plan, model });
   } catch (err) {
+    logActivity(req, {
+      action: "plan",
+      query: String(destination).trim(),
+      ok: false,
+      error: err.message,
+    });
     const status = err.status || (err instanceof SyntaxError ? 502 : 500);
     return res.status(status).json({
       error:
