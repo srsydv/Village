@@ -283,7 +283,7 @@ export function PlanScreen() {
 
         {error && <p className="text-sm text-[var(--rose)]">{error}</p>}
 
-        <div className="sticky bottom-[4.6rem] z-10 pt-3">
+        <div className="sticky bottom-[calc(6.1rem+env(safe-area-inset-bottom))] z-30 bg-[#070b14] pt-3 pb-1">
           <button type="submit" disabled={busy || !form.destination.trim()} className="btn-gold w-full rounded-2xl py-3.5 text-sm font-semibold">
             {busy ? phase || "Working…" : plan ? "Generate again" : "Write my plan"}
           </button>

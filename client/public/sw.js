@@ -1,4 +1,4 @@
-const CACHE = "aurea-v1";
+const CACHE = "aurea-v2";
 const PRECACHE = ["/", "/explore", "/plan", "/choose", "/trips", "/ask", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

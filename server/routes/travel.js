@@ -101,6 +101,7 @@ router.post("/plan", async (req, res) => {
     const { text, model } = await generateTravelReply({
       messages: [{ role: "user", content: brief }],
       system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(profile)}`,
+      json: true,
     });
     const plan = parsePlanJson(text);
     return res.json({ plan, model });

@@ -1,12 +1,12 @@
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 const MODEL_FALLBACKS = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-flash-lite-latest",
   "gemini-flash-latest",
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.5-pro",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash-lite",
 ];
 
 export function hasDirectGemini() {
@@ -20,9 +20,8 @@ function apiKey() {
 }
 
 function modelsToTry() {
-  const preferred = import.meta.env.VITE_GEMINI_MODEL;
-  const list = preferred ? [preferred, ...MODEL_FALLBACKS] : MODEL_FALLBACKS;
-  return [...new Set(list.filter(Boolean))];
+  const preferred = import.meta.env.VITE_GEMINI_MODEL || "gemini-3.6-flash";
+  return [...new Set([preferred, ...MODEL_FALLBACKS].filter(Boolean))];
 }
 
 function toGeminiContents(messages) {

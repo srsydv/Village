@@ -1,11 +1,12 @@
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 const MODEL_FALLBACKS = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-flash-lite-latest",
   "gemini-flash-latest",
   "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash-lite",
 ];
 
 function apiKey() {
@@ -19,9 +20,8 @@ function apiKey() {
 }
 
 function modelsToTry() {
-  const preferred = process.env.GEMINI_MODEL;
-  const list = preferred ? [preferred, ...MODEL_FALLBACKS] : MODEL_FALLBACKS;
-  return [...new Set(list)];
+  const preferred = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  return [...new Set([preferred, ...MODEL_FALLBACKS].filter(Boolean))];
 }
 
 export const SYSTEM_PROMPT = `You are Aurea, a private luxury travel concierge inside a mobile app.
@@ -138,10 +138,10 @@ function payload({ messages, system, json = false }) {
   };
 }
 
-export async function generateTravelReply({ messages, system = SYSTEM_PROMPT }) {
+export async function generateTravelReply({ messages, system = SYSTEM_PROMPT, json = false }) {
   let lastError;
   for (const model of modelsToTry()) {
-    const res = await postGemini(model, payload({ messages, system }));
+    const res = await postGemini(model, payload({ messages, system, json }));
     if (res.ok) {
       const data = await res.json();
       const text = extractText(data).trim();
@@ -216,7 +216,14 @@ export function parsePlanJson(text) {
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "");
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
+    throw new SyntaxError("Invalid plan JSON");
+  }
 }
 
 function friendlyGeminiError(status, body) {
@@ -224,6 +231,8 @@ function friendlyGeminiError(status, body) {
     return "Gemini rejected the API key. Check GEMINI_API_KEY and that the Gemini API is enabled.";
   }
   if (status === 429) return "Aurea is busy right now. Please wait a moment and try again.";
-  if (status === 404) return "That Gemini model is not available on this key.";
+  if (status === 404) {
+    return "Aurea could not use this Gemini model. Set GEMINI_MODEL=gemini-3.6-flash and try again.";
+  }
   return `Gemini error (${status}): ${String(body).slice(0, 240)}`;
 }

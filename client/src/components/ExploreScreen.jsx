@@ -12,9 +12,10 @@ export function ExploreScreen() {
     const query = q.trim().toLowerCase();
     return DESTINATIONS.filter((d) => {
       const hay = `${d.name} ${d.country} ${d.vibe}`.toLowerCase();
-      return !query || hay.includes(query);
+      const catOk = active === "all" || (d.tags || []).includes(active);
+      return catOk && (!query || hay.includes(query));
     });
-  }, [q]);
+  }, [q, active]);
 
   const goPlan = (label) => {
     const dest = String(label || "").trim();
@@ -42,17 +43,16 @@ export function ExploreScreen() {
           All
         </Chip>
         {CATEGORIES.map((c) => (
-          <Chip
-            key={c.id}
-            active={active === c.id}
-            onClick={() => navigate(`/ask?q=${encodeURIComponent(c.prompt)}`)}
-          >
+          <Chip key={c.id} active={active === c.id} onClick={() => setActive(c.id)}>
             {c.label}
           </Chip>
         ))}
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
+        {list.length === 0 && (
+          <p className="col-span-2 text-sm text-[var(--muted)]">No postcards in that filter. Type a city instead.</p>
+        )}
         {list.map((d, i) => (
           <button
             key={d.id}

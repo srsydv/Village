@@ -26,7 +26,15 @@ export function ChooseScreen() {
     setBusy(true);
     setError("");
     try {
-      const data = await fetchPlaces(dest);
+      let data;
+      try {
+        data = await fetchPlaces(dest);
+      } catch (first) {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        data = await fetchPlaces(dest).catch(() => {
+          throw first;
+        });
+      }
       setCatalog(data);
       const existing = trips.find((t) => t.id === tripId);
       setPicks(existing?.picks || emptyPicks());

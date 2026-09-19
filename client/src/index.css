@@ -62,7 +62,8 @@ select {
   margin: 0 auto;
   max-width: 430px;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   background:
     radial-gradient(480px 280px at 80% -8%, rgba(201, 163, 106, 0.18), transparent 55%),
     #070b14;
@@ -182,7 +183,7 @@ textarea.field {
 }
 
 .safe-bottom {
-  padding-bottom: calc(5.6rem + env(safe-area-inset-bottom));
+  padding-bottom: calc(6.4rem + env(safe-area-inset-bottom));
 }
 
 .prose-aurea h1,

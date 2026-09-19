@@ -6,6 +6,7 @@ export const DESTINATIONS = [
     vibe: "Temples & tea",
     season: "Mar–May, Oct–Nov",
     from: "₹1.1L",
+    tags: ["city", "heritage", "food"],
     image:
       "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1200&q=80",
   },
@@ -16,6 +17,7 @@ export const DESTINATIONS = [
     vibe: "Cliffside sunsets",
     season: "May–Oct",
     from: "₹1.4L",
+    tags: ["beach", "luxury"],
     image:
       "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1200&q=80",
   },
@@ -26,6 +28,7 @@ export const DESTINATIONS = [
     vibe: "Island calm",
     season: "Apr–Oct",
     from: "₹55k",
+    tags: ["beach", "food", "luxury"],
     image:
       "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80",
   },
@@ -36,6 +39,7 @@ export const DESTINATIONS = [
     vibe: "Art & cafés",
     season: "Apr–Jun, Sep–Oct",
     from: "₹1.2L",
+    tags: ["city", "food", "luxury"],
     image:
       "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1200&q=80",
   },
@@ -46,6 +50,7 @@ export const DESTINATIONS = [
     vibe: "Alpine air",
     season: "Dec–Mar, Jun–Sep",
     from: "₹1.8L",
+    tags: ["mountain", "luxury", "adventure"],
     image:
       "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?auto=format&fit=crop&w=1200&q=80",
   },
@@ -56,6 +61,7 @@ export const DESTINATIONS = [
     vibe: "Overwater villas",
     season: "Nov–Apr",
     from: "₹1.6L",
+    tags: ["beach", "luxury"],
     image:
       "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80",
   },
@@ -66,6 +72,7 @@ export const DESTINATIONS = [
     vibe: "Modern luxury",
     season: "Nov–Mar",
     from: "₹45k",
+    tags: ["city", "luxury"],
     image:
       "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1200&q=80",
   },
@@ -76,6 +83,7 @@ export const DESTINATIONS = [
     vibe: "Beaches & spice",
     season: "Nov–Feb",
     from: "₹18k",
+    tags: ["beach", "food", "budget"],
     image:
       "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=1200&q=80",
   },
@@ -86,6 +94,7 @@ export const DESTINATIONS = [
     vibe: "Pink city palaces",
     season: "Oct–Mar",
     from: "₹16k",
+    tags: ["heritage", "city", "budget"],
     image:
       "https://images.unsplash.com/photo-1477587458883-47145ed94245?auto=format&fit=crop&w=1200&q=80",
   },
@@ -96,6 +105,7 @@ export const DESTINATIONS = [
     vibe: "Eternal city",
     season: "Apr–Jun, Sep–Oct",
     from: "₹1.15L",
+    tags: ["city", "heritage", "food"],
     image:
       "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=1200&q=80",
   },
@@ -106,6 +116,7 @@ export const DESTINATIONS = [
     vibe: "Fire & ice",
     season: "Jun–Aug, Sep–Mar",
     from: "₹1.9L",
+    tags: ["adventure", "mountain"],
     image:
       "https://images.unsplash.com/photo-1504829857797-ddff29c27927?auto=format&fit=crop&w=1200&q=80",
   },
@@ -116,6 +127,7 @@ export const DESTINATIONS = [
     vibe: "Never sleeps",
     season: "Apr–Jun, Sep–Nov",
     from: "₹1.5L",
+    tags: ["city", "food"],
     image:
       "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=1200&q=80",
   },

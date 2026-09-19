@@ -12,17 +12,16 @@ The Play app must **not** contain `GEMINI_API_KEY`. Deploy this repo (Docker) an
 ```
 NODE_ENV=production
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash
-PUBLIC_APP_URL=https://YOUR-DOMAIN
-CORS_ORIGINS=https://YOUR-DOMAIN
-PORT=3001
+GEMINI_MODEL=gemini-3.6-flash
+PUBLIC_APP_URL=https://aurea-jrvb.onrender.com
+CORS_ORIGINS=https://aurea-jrvb.onrender.com
 ```
 
-Then set the same `PUBLIC_APP_URL` in local `.env` before `npm run play`.
+Do **not** set `PORT` on Render — Render assigns it. Then set the same `PUBLIC_APP_URL` in local `.env` before `npm run play`.
 
 Privacy policy URL to paste in Play Console:
 
-`https://YOUR-DOMAIN/privacy.html`
+`https://aurea-jrvb.onrender.com/privacy.html`
 
 (also served in-app at `/privacy`)
 

@@ -1,4 +1,4 @@
-const UA = "AureaTravel/1.0 (travel concierge apk)";
+const UA = "AureaTravel/1.0 (https://aurea-jrvb.onrender.com; travel concierge)";
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const OVERPASS = [
   "https://overpass-api.de/api/interpreter",
@@ -13,10 +13,15 @@ const TTL = 20 * 60 * 1000;
 function cached(key, fn) {
   const hit = cache.get(key);
   if (hit && hit.exp > Date.now()) return hit.value;
-  const pending = fn().then((value) => {
-    cache.set(key, { value, exp: Date.now() + TTL });
-    return value;
-  });
+  const pending = fn()
+    .then((value) => {
+      cache.set(key, { value, exp: Date.now() + TTL });
+      return value;
+    })
+    .catch((err) => {
+      cache.delete(key);
+      throw err;
+    });
   cache.set(key, { value: pending, exp: Date.now() + 15_000 });
   return pending;
 }
@@ -36,6 +41,13 @@ async function fetchJson(url, opts = {}, ms = 14000) {
       throw err;
     }
     return await res.json();
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      const timeout = new Error("That lookup took too long. Try again.");
+      timeout.status = 504;
+      throw timeout;
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -295,7 +307,7 @@ export async function lookupDestinationDirect(query) {
   const origin = { lat: geo.lat, lon: geo.lon };
   return cached(`dest:${geo.lat.toFixed(3)},${geo.lon.toFixed(3)}`, async () => {
     const [osm, weather, about] = await Promise.all([
-      overpassAround(geo.lat, geo.lon),
+      overpassAround(geo.lat, geo.lon).catch(() => ({ elements: [] })),
       weatherAt(geo.lat, geo.lon).catch(() => null),
       wikiSummary(geo.city || geo.name),
     ]);
