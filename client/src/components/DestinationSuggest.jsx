@@ -116,19 +116,22 @@ export function DestinationSuggest({
         <ul
           id={listId}
           role="listbox"
-          className="card absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-[1.1rem] py-1"
+          className="absolute z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-[1.1rem] border border-[var(--line)] bg-[#141c2f] py-1"
         >
           {hits.map((place, i) => (
             <li key={place.id} role="option" aria-selected={i === active}>
               <button
                 type="button"
-                className={`block w-full px-4 py-2.5 text-left text-sm ${
+                className={`block w-full px-4 py-2.5 text-left ${
                   i === active ? "bg-[rgba(201,163,106,0.14)] text-[var(--cream)]" : "text-[#d8d2c6]"
                 }`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => pick(place)}
               >
-                {place.label}
+                <span className="block text-sm font-medium">{place.label}</span>
+                {place.detail && (
+                  <span className="mt-0.5 block text-[0.72rem] leading-snug text-[var(--muted)]">{place.detail}</span>
+                )}
               </button>
             </li>
           ))}

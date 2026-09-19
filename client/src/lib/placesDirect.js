@@ -139,35 +139,110 @@ function placeName(hit) {
 function shortPlaceLabel(hit) {
   const addr = hit.address || {};
   const name = placeName(hit);
+  const district = addr.county || addr.state_district || addr.municipality || addr.district || "";
   const state = addr.state || addr.region || "";
   const country = addr.country || "";
   const parts = [name];
   const lower = (s) => String(s || "").toLowerCase();
-  if (state && lower(state) !== lower(name)) parts.push(state);
-  if (country && lower(country) !== lower(name) && lower(country) !== lower(state)) parts.push(country);
+  if (district && lower(district) !== lower(name)) parts.push(district);
+  if (state && lower(state) !== lower(name) && lower(state) !== lower(district)) parts.push(state);
+  if (country && !parts.some((p) => lower(p) === lower(country))) parts.push(country);
   return parts.filter(Boolean).join(", ") || hit.display_name || "";
 }
 
+function hitCategory(hit) {
+  return hit.category || hit.class || "";
+}
+
+function kindLabel(hit) {
+  const type = hit.addresstype || hit.type || "";
+  const map = {
+    city: "City",
+    town: "Town",
+    village: "Village",
+    hamlet: "Hamlet",
+    suburb: "Suburb",
+    neighbourhood: "Neighbourhood",
+    municipality: "Municipality",
+    county: "District",
+    administrative: "Local area",
+    station: "Station",
+    railway: "Station",
+    city_district: "Local area",
+  };
+  return map[type] || pretty(type) || "Place";
+}
+
+function formatPopulation(raw) {
+  const n = Number(String(raw || "").replace(/[^\d]/g, ""));
+  if (!n) return "";
+  return n.toLocaleString("en-IN");
+}
+
+function placeDetail(hit) {
+  const addr = hit.address || {};
+  const kind = kindLabel(hit);
+  const name = placeName(hit);
+  const district = addr.county || addr.state_district || addr.municipality || addr.district || "";
+  const state = addr.state || addr.region || "";
+  const pin = addr.postcode || "";
+  const pop = formatPopulation(hit.extratags?.population);
+  const lower = (s) => String(s || "").toLowerCase();
+  let line = kind;
+  if (district && lower(district) !== lower(name)) {
+    const districtAlready = /district|tahsil|tehsil|taluk/i.test(district);
+    line = `${kind} in ${district}${districtAlready ? "" : " district"}${state ? `, ${state}` : ""}`;
+  } else if (state) {
+    line = `${kind} in ${state}`;
+  }
+  const extras = [];
+  if (pin) extras.push(`PIN ${pin}`);
+  if (pop) extras.push(`~${pop} people`);
+  return [line, extras.join(" · ")].filter(Boolean).join(" · ");
+}
+
 function isDestinationHit(hit) {
-  const cls = hit.class;
+  const cls = hitCategory(hit);
   const type = hit.type;
+  if (["landuse", "highway", "building", "shop"].includes(cls)) return false;
   if (cls === "place") return true;
   if (cls === "boundary" && type === "administrative") return true;
   if (cls === "natural" && ["island", "archipelago", "peninsula", "bay"].includes(type)) return true;
   if (cls === "tourism" && ["attraction", "theme_park", "national_park"].includes(type)) return true;
+  if (cls === "railway" && type === "station") return true;
   return false;
+}
+
+function scoreHit(hit, query) {
+  const tokens = String(query)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .filter((t) => t.length > 2);
+  const hay = `${hit.display_name || ""} ${JSON.stringify(hit.address || {})}`.toLowerCase();
+  let score = 0;
+  for (const t of tokens) if (hay.includes(t)) score += 4;
+  const type = hit.addresstype || hit.type || "";
+  if (["city", "town", "village", "suburb", "hamlet", "municipality"].includes(type)) score += 6;
+  if (type === "station") score -= 5;
+  if (hit.extratags?.population) score += 2;
+  return score;
 }
 
 function toSuggestion(hit, query) {
   const addr = hit.address || {};
   const name = placeName(hit) || query;
+  const district = addr.county || addr.state_district || addr.municipality || addr.district || "";
   return {
     id: String(hit.place_id || `${hit.lat},${hit.lon}`),
     label: shortPlaceLabel(hit),
+    detail: placeDetail(hit),
+    kind: kindLabel(hit),
     name,
     city: addr.city || addr.town || addr.village || name,
+    district,
     state: addr.state || addr.region || "",
     country: addr.country || "",
+    pin: addr.postcode || "",
     lat: Number(hit.lat),
     lon: Number(hit.lon),
   };
@@ -177,16 +252,16 @@ export async function suggestPlacesDirect(query) {
   const q = String(query || "").trim();
   if (q.length < 2) return [];
   return cached(`suggest:${q.toLowerCase()}`, async () => {
-    const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=jsonv2&addressdetails=1&limit=8&accept-language=en`;
+    const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=jsonv2&addressdetails=1&extratags=1&limit=10&accept-language=en`;
     const rows = await fetchJson(url);
     const list = Array.isArray(rows) ? rows : [];
     const preferred = list.filter(isDestinationHit);
-    const source = preferred.length ? preferred : list;
+    const source = (preferred.length ? preferred : list).slice().sort((a, b) => scoreHit(b, q) - scoreHit(a, q));
     const seen = new Set();
     const out = [];
     for (const hit of source) {
       const item = toSuggestion(hit, q);
-      const key = item.label.toLowerCase();
+      const key = `${item.name}|${item.district}|${item.state}`.toLowerCase();
       if (!item.label || seen.has(key)) continue;
       seen.add(key);
       out.push(item);

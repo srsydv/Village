@@ -54,14 +54,16 @@ export function HomeScreen() {
         }}
       >
         <p className="mb-2 text-[0.7rem] tracking-wide text-[var(--muted)] uppercase">Where are you going?</p>
-        <DestinationSuggest
-          value={dest}
-          placeholder="Lucknow, Goa, Kyoto…"
-          onChange={setDest}
-          onSelect={(place) => {
-            if (place?.label) goPlan(place.label);
-          }}
-        />
+        <div className="relative z-20">
+          <DestinationSuggest
+            value={dest}
+            placeholder="Lucknow, Goa, Kyoto…"
+            onChange={setDest}
+            onSelect={(place) => {
+              if (place?.label) goPlan(place.label);
+            }}
+          />
+        </div>
         <button type="submit" className="btn-gold mt-3 w-full rounded-2xl py-3 text-sm font-semibold">
           Plan this trip
         </button>
