@@ -40,7 +40,8 @@ export function PlacePicker({ catalog, picks, onToggle, tab, onTab }) {
       <div className="mt-3 space-y-2">
         {items.length === 0 ? (
           <p className="card rounded-2xl px-4 py-5 text-sm text-[var(--muted)]">
-            No mapped {tab} here yet. Try a bigger city name.
+            {catalog?.listingsError ||
+              `No mapped ${tab} loaded. OpenStreetMap is often busy — tap Find again.`}
           </p>
         ) : (
           items.map((place) => (

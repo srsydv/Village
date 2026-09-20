@@ -2,6 +2,7 @@ const UA = `AureaTravel/1.0 (${process.env.PUBLIC_APP_URL || "https://aurea-jrvb
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const OVERPASS = [
   "https://overpass-api.de/api/interpreter",
+  "https://lz4.overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
 ];
 const WIKI = "https://en.wikipedia.org/api/rest_v1/page/summary/";
@@ -80,13 +81,20 @@ function pretty(value) {
 function classify(tags = {}) {
   const tourism = tags.tourism || "";
   const amenity = tags.amenity || "";
-  if (["hotel", "guest_house", "hostel", "motel", "apartment"].includes(tourism) || amenity === "hotel") {
+  const leisure = tags.leisure || "";
+  if (
+    ["hotel", "guest_house", "hostel", "motel", "apartment"].includes(tourism) ||
+    amenity === "hotel" ||
+    tags.building === "hotel"
+  ) {
     return "stay";
   }
   if (["restaurant", "cafe", "fast_food", "food_court"].includes(amenity)) return "food";
   if (
     ["attraction", "museum", "viewpoint", "gallery", "zoo", "theme_park", "artwork"].includes(tourism) ||
-    tags.historic
+    tags.historic ||
+    amenity === "place_of_worship" ||
+    ["park", "garden"].includes(leisure)
   ) {
     return "sights";
   }
@@ -305,24 +313,31 @@ export async function geocode(query) {
   });
 }
 
-async function overpassAround(lat, lon) {
-  const body = `[out:json][timeout:28];
+function overpassQl(lat, lon) {
+  return `[out:json][timeout:18];
 (
-  nwr["tourism"~"^(hotel|guest_house|hostel|motel|apartment)$"](around:8000,${lat},${lon});
-  nwr["amenity"~"^(restaurant|cafe|fast_food)$"](around:5000,${lat},${lon});
-  nwr["tourism"~"^(attraction|museum|viewpoint|gallery|zoo|theme_park)$"](around:10000,${lat},${lon});
-  nwr["historic"~"^(monument|castle|palace|temple|fort|ruins|memorial)$"](around:10000,${lat},${lon});
+  nwr["tourism"~"^(hotel|guest_house|hostel|motel|apartment)$"](around:10000,${lat},${lon});
+  nwr["amenity"="hotel"](around:10000,${lat},${lon});
+  nwr["amenity"~"^(restaurant|cafe|fast_food|food_court)$"](around:6000,${lat},${lon});
+  nwr["tourism"~"^(attraction|museum|viewpoint|gallery|zoo|theme_park|artwork)$"](around:12000,${lat},${lon});
+  nwr["historic"](around:12000,${lat},${lon});
+  nwr["leisure"~"^(park|garden)$"]["name"](around:8000,${lat},${lon});
 );
-out center tags;`;
+out center tags 300;`;
+}
 
+async function overpassAround(lat, lon) {
+  const body = new URLSearchParams({ data: overpassQl(lat, lon) }).toString();
   let lastError;
   for (const endpoint of OVERPASS) {
     try {
-      return await fetchJson(
+      const data = await fetchJson(
         endpoint,
-        { method: "POST", headers: { "Content-Type": "text/plain" }, body },
-        28000,
+        { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body },
+        16000,
       );
+      if (Array.isArray(data?.elements) && data.elements.length) return data;
+      lastError = new Error("Mapped listings came back empty.");
     } catch (err) {
       lastError = err;
     }
@@ -393,10 +408,18 @@ function takeUnique(list, limit) {
 export async function lookupDestination(query) {
   const geo = await geocode(query);
   const origin = { lat: geo.lat, lon: geo.lon };
+  const key = `dest:${geo.lat.toFixed(3)},${geo.lon.toFixed(3)}`;
+  const hit = cache.get(key);
+  if (hit && hit.exp > Date.now()) return hit.value;
 
-  return cached(`dest:${geo.lat.toFixed(3)},${geo.lon.toFixed(3)}`, async () => {
+  const pending = (async () => {
+    let listingsError = "";
     const [osm, weather, about] = await Promise.all([
-      overpassAround(geo.lat, geo.lon).catch(() => ({ elements: [] })),
+      overpassAround(geo.lat, geo.lon).catch((err) => {
+        listingsError = err.message || "Mapped listings are busy. Tap Find again.";
+        console.error("Overpass listings failed", err.message);
+        return { elements: [] };
+      }),
       weatherAt(geo.lat, geo.lon).catch(() => null),
       wikiSummary(geo.city || geo.name),
     ]);
@@ -406,23 +429,41 @@ export async function lookupDestination(query) {
       .filter(Boolean)
       .sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
 
+    const stays = takeUnique(
+      places.filter((p) => p.kind === "stay"),
+      16,
+    );
+    const food = takeUnique(
+      places.filter((p) => p.kind === "food"),
+      18,
+    );
+    const sights = takeUnique(
+      places.filter((p) => p.kind === "sights"),
+      16,
+    );
+    if (!stays.length && !food.length && !sights.length) {
+      listingsError = listingsError || "Mapped stays, food, and sights could not load. Tap Find again.";
+    }
+
     return {
       place: geo,
       about,
       weather,
-      stays: takeUnique(
-        places.filter((p) => p.kind === "stay"),
-        16,
-      ),
-      food: takeUnique(
-        places.filter((p) => p.kind === "food"),
-        18,
-      ),
-      sights: takeUnique(
-        places.filter((p) => p.kind === "sights"),
-        16,
-      ),
+      stays,
+      food,
+      sights,
+      listingsError,
       source: "OpenStreetMap + Open-Meteo",
     };
-  });
+  })();
+
+  cache.set(key, { value: pending, exp: Date.now() + TTL });
+  try {
+    const result = await pending;
+    if (!result.stays.length && !result.food.length && !result.sights.length) cache.delete(key);
+    return result;
+  } catch (err) {
+    cache.delete(key);
+    throw err;
+  }
 }
