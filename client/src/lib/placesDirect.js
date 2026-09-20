@@ -301,36 +301,88 @@ async function geocode(query) {
   });
 }
 
-function overpassQl(lat, lon) {
-  return `[out:json][timeout:18];
-(
-  nwr["tourism"~"^(hotel|guest_house|hostel|motel|apartment)$"](around:10000,${lat},${lon});
-  nwr["amenity"="hotel"](around:10000,${lat},${lon});
-  nwr["amenity"~"^(restaurant|cafe|fast_food|food_court)$"](around:6000,${lat},${lon});
-  nwr["tourism"~"^(attraction|museum|viewpoint|gallery|zoo|theme_park|artwork)$"](around:12000,${lat},${lon});
-  nwr["historic"](around:12000,${lat},${lon});
-  nwr["leisure"~"^(park|garden)$"]["name"](around:8000,${lat},${lon});
-);
-out center tags 300;`;
+function overpassQueries(lat, lon) {
+  return [
+    `[out:json][timeout:10];(nwr["tourism"="hotel"](around:6000,${lat},${lon});nwr["amenity"="hotel"](around:6000,${lat},${lon}););out center tags 40;`,
+    `[out:json][timeout:10];nwr["amenity"~"^(restaurant|cafe)$"](around:4000,${lat},${lon});out center tags 40;`,
+    `[out:json][timeout:10];(nwr["tourism"~"^(attraction|museum)$"](around:8000,${lat},${lon});nwr["historic"](around:8000,${lat},${lon}););out center tags 40;`,
+  ];
+}
+
+async function overpassOne(endpoint, ql, ms) {
+  const body = new URLSearchParams({ data: ql }).toString();
+  const data = await fetchJson(
+    endpoint,
+    { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body },
+    ms,
+  );
+  if (!Array.isArray(data?.elements) || !data.elements.length) {
+    throw new Error("Mapped listings came back empty.");
+  }
+  return data;
+}
+
+async function overpassRace(ql, ms = 9000) {
+  return Promise.any(OVERPASS.map((endpoint) => overpassOne(endpoint, ql, ms)));
 }
 
 async function overpassAround(lat, lon) {
-  const body = new URLSearchParams({ data: overpassQl(lat, lon) }).toString();
-  let lastError;
-  for (const endpoint of OVERPASS) {
+  const parts = await Promise.all(overpassQueries(lat, lon).map((ql) => overpassRace(ql).catch(() => ({ elements: [] }))));
+  const elements = parts.flatMap((part) => part.elements || []);
+  if (!elements.length) {
+    throw new Error("That lookup took too long. Try again.");
+  }
+  return { elements };
+}
+
+function nominatimToPlace(hit, kind, city, origin) {
+  const type = hit.type || hit.addresstype || "";
+  if (["city", "town", "village", "state", "country", "administrative", "county"].includes(type)) return null;
+  const name = hit.name || String(hit.display_name || "").split(",")[0];
+  if (!name) return null;
+  const lat = Number(hit.lat);
+  const lon = Number(hit.lon);
+  return {
+    id: `nom/${hit.place_id}`,
+    kind,
+    name,
+    type: pretty(type) || (kind === "stay" ? "Stay" : kind === "food" ? "Food" : "Sight"),
+    cuisine: "",
+    stars: "",
+    area: city,
+    address: hit.display_name || "",
+    phone: "",
+    website: "",
+    lat,
+    lon,
+    distanceKm: haversineKm(origin, { lat, lon }),
+    city,
+  };
+}
+
+async function nominatimPois(city, origin) {
+  const searches = [
+    { kind: "stay", q: `hotels in ${city}` },
+    { kind: "food", q: `restaurants in ${city}` },
+    { kind: "sights", q: `monuments in ${city}` },
+  ];
+  const out = [];
+  for (const item of searches) {
     try {
-      const data = await fetchJson(
-        endpoint,
-        { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body },
-        16000,
+      const rows = await fetchJson(
+        `${NOMINATIM}?q=${encodeURIComponent(item.q)}&format=jsonv2&addressdetails=1&limit=12&accept-language=en`,
+        {},
+        9000,
       );
-      if (Array.isArray(data?.elements) && data.elements.length) return data;
-      lastError = new Error("Mapped listings came back empty.");
-    } catch (err) {
-      lastError = err;
+      for (const hit of Array.isArray(rows) ? rows : []) {
+        const place = nominatimToPlace(hit, item.kind, city, origin);
+        if (place) out.push(place);
+      }
+    } catch {
+      /* ignore one kind */
     }
   }
-  throw lastError || new Error("Places lookup is busy. Try again in a moment.");
+  return out;
 }
 
 const WEATHER_LABEL = {
@@ -410,10 +462,16 @@ export async function lookupDestinationDirect(query) {
       weatherAt(geo.lat, geo.lon).catch(() => null),
       wikiSummary(geo.city || geo.name),
     ]);
-    const places = (osm.elements || [])
+    let places = (osm.elements || [])
       .map((el) => toPlace(el, geo.city || geo.name, origin))
-      .filter(Boolean)
-      .sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
+      .filter(Boolean);
+
+    if (!places.length) {
+      places = await nominatimPois(geo.city || geo.name, origin);
+      if (places.length) listingsError = "";
+    }
+
+    places.sort((a, b) => (a.distanceKm ?? 99) - (b.distanceKm ?? 99));
     const stays = takeUnique(
       places.filter((p) => p.kind === "stay"),
       16,
