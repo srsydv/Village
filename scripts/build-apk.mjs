@@ -44,6 +44,12 @@ if (!process.env.GEMINI_API_KEY) {
   process.exit(1);
 }
 
+const publicUrl = String(process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
+if (!publicUrl.startsWith("https://")) {
+  console.error("Set PUBLIC_APP_URL to your live HTTPS origin so the phone can sign in.");
+  process.exit(1);
+}
+
 const javaHome =
   process.env.JAVA_HOME ||
   "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home";
@@ -64,8 +70,10 @@ process.env.PATH = [
 
 console.log("This debug APK is for sideload testers only — not for Play Store.");
 console.log("Play Store: host the API, then npm run play:key && npm run play\n");
+console.log(`Phone API: ${publicUrl}`);
 await run("npm", ["run", "build", "-w", "client"], {
   VITE_CAPACITOR: "1",
+  VITE_API_BASE: publicUrl,
   VITE_GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   VITE_GEMINI_MODEL: process.env.GEMINI_MODEL || "",
 });

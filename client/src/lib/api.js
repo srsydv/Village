@@ -20,8 +20,15 @@ function activityHeaders() {
 }
 
 export async function fetchAuthConfig() {
-  const res = await fetch(apiUrl("/api/auth/config"));
-  return res.json().catch(() => ({ enabled: false, googleClientId: "" }));
+  let res;
+  try {
+    res = await fetch(apiUrl("/api/auth/config"));
+  } catch {
+    throw new Error("Could not reach the Safar server. Check your connection.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not load sign-in settings.");
+  return data;
 }
 
 export async function signInWithGoogleCredential(credential) {
