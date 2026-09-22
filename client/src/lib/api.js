@@ -12,9 +12,9 @@ function activityHeaders() {
   const profile = getProfile();
   const token = getAuthToken();
   return {
-    "X-Aurea-Visitor": getVisitorId(),
-    "X-Aurea-Name": profile.name || "",
-    "X-Aurea-Home": profile.homeCity || "",
+    "X-Safar-Visitor": getVisitorId(),
+    "X-Safar-Name": profile.name || "",
+    "X-Safar-Home": profile.homeCity || "",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
@@ -36,6 +36,7 @@ export async function signInWithGoogleCredential(credential) {
       name: profile.name,
       homeCity: profile.homeCity,
       currency: profile.currency,
+      nationality: profile.nationality,
     }),
   });
   const data = await res.json().catch(() => ({}));
@@ -73,6 +74,18 @@ export async function fetchAdminUser(id) {
   return adminGet(`/api/admin/users/${encodeURIComponent(id)}`);
 }
 
+export async function deleteAccount() {
+  const token = getAuthToken();
+  if (!token) throw new Error("Sign in again to delete this account.");
+  const res = await fetch(apiUrl("/api/auth/me"), {
+    method: "DELETE",
+    headers: activityHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not delete this account.");
+  return true;
+}
+
 export async function syncAccount(payload) {
   const token = getAuthToken();
   if (!token) return null;
@@ -86,7 +99,7 @@ export async function syncAccount(payload) {
   return data.user;
 }
 
-export async function askAurea({ messages, profile, onDelta }) {
+export async function askSafar({ messages, profile, onDelta }) {
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
       messages: messages.slice(-16),
@@ -104,7 +117,7 @@ export async function askAurea({ messages, profile, onDelta }) {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Aurea could not reply.");
+    throw new Error(data.error || "Safar could not reply.");
   }
 
   const reader = res.body?.getReader();
@@ -181,7 +194,7 @@ export async function createPlan(payload) {
     try {
       return parsePlanJson(text);
     } catch {
-      throw new Error("Aurea drafted a plan but it could not be formatted. Please try again.");
+      throw new Error("Safar drafted a plan but it could not be formatted. Please try again.");
     }
   }
 
@@ -191,6 +204,6 @@ export async function createPlan(payload) {
     body: JSON.stringify({ ...payload, visitorId: getVisitorId() }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Aurea could not build this plan.");
+  if (!res.ok) throw new Error(data.error || "Safar could not build this plan.");
   return data.plan;
 }

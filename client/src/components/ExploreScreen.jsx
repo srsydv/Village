@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CATEGORIES, DESTINATIONS } from "../lib/destinations.js";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
 
 export function ExploreScreen() {
   const navigate = useNavigate();
-  const [active, setActive] = useState("all");
+  const [params] = useSearchParams();
+  const [active, setActive] = useState(params.get("tag") || "all");
   const [q, setQ] = useState("");
 
   const list = useMemo(() => {
@@ -51,7 +52,10 @@ export function ExploreScreen() {
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         {list.length === 0 && (
-          <p className="col-span-2 text-sm text-[var(--muted)]">No postcards in that filter. Type a city instead.</p>
+          <div className="card col-span-2 rounded-[1.4rem] px-4 py-6 text-center">
+            <p className="serif text-xl">No postcards in that filter.</p>
+            <p className="mt-2 text-sm text-[var(--muted)]">Type any city above — Safar can plan places that are not on this wall.</p>
+          </div>
         )}
         {list.map((d, i) => (
           <button

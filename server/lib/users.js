@@ -51,6 +51,7 @@ export function publicUser(doc) {
     picture: doc.picture || "",
     homeCity: doc.homeCity || "",
     currency: doc.currency || "INR",
+    nationality: doc.nationality || "India",
     chats: Array.isArray(doc.chats) ? doc.chats : [],
     trips: Array.isArray(doc.trips) ? doc.trips : [],
   };
@@ -72,6 +73,7 @@ export async function upsertGoogleUser(google) {
         name: google.name,
         homeCity: "",
         currency: "INR",
+        nationality: "India",
         chats: [],
         trips: [],
         createdAt: now,
@@ -150,10 +152,18 @@ export async function saveUserState(uid, patch) {
   if (patch.name != null) $set.name = clip(patch.name, 80);
   if (patch.homeCity != null) $set.homeCity = clip(patch.homeCity, 120);
   if (patch.currency != null) $set.currency = clip(patch.currency, 8);
+  if (patch.nationality != null) $set.nationality = clip(patch.nationality, 80);
   if (patch.picture != null) $set.picture = clip(patch.picture, 400);
   if (patch.chats) $set.chats = capChats(patch.chats);
   if (patch.trips) $set.trips = capTrips(patch.trips);
   const col = await usersCol();
   const doc = await col.findOneAndUpdate({ _id: new ObjectId(uid) }, { $set }, { returnDocument: "after" });
   return doc?.value || doc;
+}
+
+export async function deleteUser(uid) {
+  if (!ObjectId.isValid(uid)) return false;
+  const col = await usersCol();
+  const result = await col.deleteOne({ _id: new ObjectId(uid) });
+  return result.deletedCount > 0;
 }

@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const androidDir = path.join(root, "android");
-const storeFile = "aurea-upload.jks";
+const storeFile = "safar-upload.jks";
 const jks = path.join(androidDir, storeFile);
 const propsPath = path.join(androidDir, "keystore.properties");
 
@@ -21,7 +21,7 @@ if (fs.existsSync(jks) && fs.existsSync(propsPath)) {
   process.exit(0);
 }
 
-const password = process.env.AUREA_KEYSTORE_PASSWORD || randomBytes(18).toString("base64url");
+const password = process.env.SAFAR_KEYSTORE_PASSWORD || randomBytes(18).toString("base64url");
 const result = spawnSync(
   bin,
   [
@@ -38,13 +38,13 @@ const result = spawnSync(
     "-validity",
     "10000",
     "-alias",
-    "aurea",
+    "safar",
     "-storepass",
     password,
     "-keypass",
     password,
     "-dname",
-    "CN=Aurea, OU=Travel, O=Aurea, L=India, ST=India, C=IN",
+    "CN=Safar, OU=Travel, O=Safar, L=India, ST=India, C=IN",
   ],
   { stdio: "inherit" },
 );
@@ -59,7 +59,7 @@ fs.writeFileSync(
   [
     `storeFile=${storeFile}`,
     `storePassword=${password}`,
-    `keyAlias=aurea`,
+    `keyAlias=safar`,
     `keyPassword=${password}`,
     "",
   ].join("\n"),

@@ -27,7 +27,7 @@ export function tripToText(trip) {
 
   if (plan.visa) {
     lines.push("");
-    lines.push("Visa (you apply — Aurea does not file)");
+    lines.push("Visa (you apply — Safar does not file)");
     lines.push(typeof plan.visa === "string" ? plan.visa : plan.visa.youApply || JSON.stringify(plan.visa));
   }
 
@@ -56,7 +56,7 @@ export function tripToText(trip) {
   }
 
   lines.push("");
-  lines.push("Drafted with Aurea. Hotel and food prices are estimates.");
+  lines.push("Drafted with Safar. Hotel and food prices are estimates.");
   return lines.join("\n");
 }
 

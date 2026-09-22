@@ -1,0 +1,31 @@
+App name
+Safar
+
+Short description (80 chars max)
+Private AI travel plans — visas, INR budgets, day-by-day. You file visas yourself.
+
+Full description
+Safar is a private AI travel concierge. Sign in with Google, then ask about destinations, budgets, hotels, packing, and visas, or generate a day-by-day plan before you fly.
+
+What you get
+• Ask — short answers on visas, money, packing, and stays
+• Plan — an itinerary first, then optional hotel, food, and sight picks
+• Trips — save, share, and duplicate plans on any phone you sign in with
+
+Prices are estimates. Hotel and restaurant links open Booking, Airbnb, Zomato, or Maps. Safar does not take payment and does not file visas. You apply on the official site.
+
+Category
+Travel
+
+Tags
+travel planner, itinerary, visa, budget travel, India
+
+Content rating
+Not for children under 13. Target age 18+.
+
+Data safety notes
+• Google Sign-In is required.
+• Chat text and plan details are sent to Google Gemini.
+• Account, chats, and trips are stored so they reload on another device.
+• Users can delete their account in Profile.
+• Not sold. Not used for ads.

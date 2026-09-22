@@ -48,7 +48,7 @@ router.get("/ops/activity", async (req, res) => {
     })
     .join("");
   res.type("html").send(`<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Aurea activity</title>
+<html lang="en"><head><meta charset="utf-8"><title>Safar activity</title>
 <style>
   body { font-family: ui-sans-serif, system-ui; background:#070b14; color:#f6efe4; margin:0; padding:1.5rem; }
   table { border-collapse: collapse; width:100%; font-size:14px; }
@@ -85,7 +85,7 @@ router.get("/ops/users", async (req, res) => {
     })
     .join("");
   res.type("html").send(`<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Aurea users</title>
+<html lang="en"><head><meta charset="utf-8"><title>Safar users</title>
 <style>
   body { font-family: ui-sans-serif, system-ui; background:#070b14; color:#f6efe4; margin:0; padding:1.5rem; }
   table { border-collapse: collapse; width:100%; font-size:14px; }
@@ -127,7 +127,7 @@ router.get("/ops/searches", async (req, res) => {
     })
     .join("");
   res.type("html").send(`<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><title>Aurea searches</title>
+<html lang="en"><head><meta charset="utf-8"><title>Safar searches</title>
 <style>
   body { font-family: ui-sans-serif, system-ui; background:#070b14; color:#f6efe4; margin:0; padding:1.5rem; }
   table { border-collapse: collapse; width:100%; font-size:14px; }

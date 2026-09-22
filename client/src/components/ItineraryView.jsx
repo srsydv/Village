@@ -105,7 +105,7 @@ function VisaBlock({ visa }) {
       <p className="kicker">Visa (you apply)</p>
       <p className="mt-2 text-sm leading-relaxed text-[#d8d2c6]">{text}</p>
       <p className="mt-2 text-xs text-[var(--muted)]">
-        Aurea explains the steps. You file on the official site. We do not collect documents or guarantee approval.
+        Safar explains the steps. You file on the official site. We do not collect documents or guarantee approval.
       </p>
     </section>
   );

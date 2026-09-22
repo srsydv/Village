@@ -1,6 +1,6 @@
 {
-  "name": "Aurea — Travel Concierge",
-  "short_name": "Aurea",
+  "name": "Safar — Travel Concierge",
+  "short_name": "Safar",
   "description": "Ask for destinations, expenses, hotels, and day-by-day travel plans before you fly.",
   "start_url": "/",
   "display": "standalone",

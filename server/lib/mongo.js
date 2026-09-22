@@ -4,7 +4,7 @@ let connecting;
 export async function getDb() {
   const uri = process.env.MONGODB_URI;
   if (!uri) return null;
-  if (client) return client.db(process.env.MONGODB_DB || "aurea");
+  if (client) return client.db(process.env.MONGODB_DB || "safar");
   if (connecting) return connecting;
 
   connecting = connect(uri);
@@ -29,5 +29,5 @@ async function connect(uri) {
   await next.connect();
   client = next;
   connecting = null;
-  return client.db(process.env.MONGODB_DB || "aurea");
+  return client.db(process.env.MONGODB_DB || "safar");
 }

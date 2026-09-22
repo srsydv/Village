@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { CURRENCY_OPTIONS } from "../lib/profileOptions.js";
 import { useTravel } from "../lib/TravelContext.jsx";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
 import { GoogleSignIn } from "./GoogleSignIn.jsx";
+import { PassportSelect } from "./PassportSelect.jsx";
 
 export function Onboarding() {
   const { completeGoogleSignIn, completeOnboarding, signOut, signedIn, account, profile } = useTravel();
   const [name, setName] = useState(profile.name || account?.name || "");
   const [homeCity, setHomeCity] = useState(profile.homeCity || "");
   const [currency, setCurrency] = useState(profile.currency || "INR");
+  const [nationality, setNationality] = useState(profile.nationality || "India");
 
   useEffect(() => {
     if (!signedIn) return;
     setName((current) => current || profile.name || account?.name || "");
     setHomeCity((current) => current || profile.homeCity || "");
     setCurrency((current) => current || profile.currency || "INR");
+    setNationality((current) => current || profile.nationality || "India");
   }, [account, profile, signedIn]);
 
   const onSignedIn = useCallback((data) => completeGoogleSignIn(data), [completeGoogleSignIn]);
@@ -30,12 +34,12 @@ export function Onboarding() {
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-[#070B14]/45 to-[#070B14]" />
       <div className="relative flex min-h-dvh flex-col justify-end px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))]">
-        <p className="kicker">Aurea</p>
+        <p className="kicker">Safar</p>
         {signedIn ? (
           <>
-            <h1 className="serif mt-3 text-[2.55rem] leading-[1.05] font-semibold">Tell Aurea who is travelling.</h1>
+            <h1 className="serif mt-3 text-[2.55rem] leading-[1.05] font-semibold">Tell Safar who is travelling.</h1>
             <p className="mt-3 max-w-[22rem] text-[0.95rem] leading-relaxed text-[#d8d2c6]">
-              Signed in as {account?.email}. Name, hometown, and currency go into every plan.
+              Signed in as {account?.email}. Name, hometown, currency, and passport go into every plan.
             </p>
             <div className="mt-6 space-y-3">
               <input
@@ -54,12 +58,13 @@ export function Onboarding() {
                 }}
               />
               <select className="field" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="INR">INR — Indian Rupee</option>
-                <option value="USD">USD — US Dollar</option>
-                <option value="EUR">EUR — Euro</option>
-                <option value="GBP">GBP — Pound</option>
-                <option value="AED">AED — Dirham</option>
+                {CURRENCY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
+              <PassportSelect value={nationality} onChange={setNationality} />
             </div>
             <button
               type="button"
@@ -70,6 +75,7 @@ export function Onboarding() {
                   name: name.trim(),
                   homeCity: homeCity.trim(),
                   currency,
+                  nationality,
                 })
               }
             >
@@ -81,7 +87,7 @@ export function Onboarding() {
           </>
         ) : (
           <>
-            <h1 className="serif mt-3 text-[2.55rem] leading-[1.05] font-semibold">Sign in to plan with Aurea.</h1>
+            <h1 className="serif mt-3 text-[2.55rem] leading-[1.05] font-semibold">Sign in to plan with Safar.</h1>
             <p className="mt-3 max-w-[22rem] text-[0.95rem] leading-relaxed text-[#d8d2c6]">
               Continue with Google. Then add your name, hometown, and currency. There is no guest mode.
             </p>

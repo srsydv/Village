@@ -1,4 +1,4 @@
-package com.aurea.travel;
+package com.safar.travel;
 
 import com.getcapacitor.BridgeActivity;
 

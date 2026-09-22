@@ -1,4 +1,4 @@
-const CACHE = "aurea-v3";
+const CACHE = "safar-v1";
 const PRECACHE = ["/", "/explore", "/plan", "/choose", "/trips", "/ask", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -28,7 +28,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req).catch(
         () =>
-          new Response(JSON.stringify({ error: "You are offline. Aurea needs a connection to answer." }), {
+          new Response(JSON.stringify({ error: "You are offline. Safar needs a connection to answer." }), {
             status: 503,
             headers: { "Content-Type": "application/json" },
           }),

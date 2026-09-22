@@ -1,76 +1,57 @@
-# Play Store (Aurea)
+# Play Store (Safar)
 
-The Android project is Play-shaped. Google still needs a **live HTTPS host**, a **Developer account**, and a **manual Console upload**. This repo cannot click “Publish” for you.
-
-Package: `com.aurea.travel`  
+Package: `com.safar.travel`  
 Version: `1.0.0` (versionCode 1)
 
-## 1. Host the API (required)
+**Step-by-step Console upload:** [PLAY_UPLOAD.md](PLAY_UPLOAD.md)
 
-The Play app must **not** contain `GEMINI_API_KEY`. Deploy this repo (Docker) and set:
+The Android project is Play-shaped. You still upload the bundle in Play Console yourself.
 
-```
-NODE_ENV=production
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-3.6-flash
-PUBLIC_APP_URL=https://aurea-jrvb.onrender.com
-CORS_ORIGINS=https://aurea-jrvb.onrender.com
-```
+## Before you upload
 
-Do **not** set `PORT` on Render — Render assigns it. Then set the same `PUBLIC_APP_URL` in local `.env` before `npm run play`.
-
-Privacy policy URL to paste in Play Console:
-
-`https://aurea-jrvb.onrender.com/privacy.html`
-
-(also served in-app at `/privacy`)
-
-## 2. Upload key (once)
+1. **Redeploy the server** so `https://your-host/privacy.html` says Safar and Delete account. The Play app calls this host. Do not put `GEMINI_API_KEY` in the Android bundle.
+2. Create the upload key once, then back it up:
 
 ```bash
 npm run play:key
 ```
 
-Back up `android/aurea-upload.jks` and `android/keystore.properties`. Never commit them. Enroll in **Play App Signing** and upload this as the upload key.
-
-## 3. Build the bundle
+3. Build the signed bundle (needs `PUBLIC_APP_URL=https://…` in `.env`):
 
 ```bash
 npm run play
 ```
 
-Output: `release/Aurea-play.aab`  
-Upload that file. Do not upload `Aurea-testing.apk` (debug, and it may embed a key).
+Output: `release/Safar-play.aab`
 
-## 4. Play Console listing
+## Listing copy
 
-- App name: Aurea
-- Short description: Private AI travel plans — visa steps, INR budgets, day-by-day. You apply for visas yourself.
-- Graphics: `store/play-icon.png` (512×512) and `store/play-feature.png` (feature graphic). Phone screenshots: capture the running app.
+Use `store/listing.txt`.
+
+- App name: Safar
+- Graphics: `store/play-icon-512.png` and `store/play-feature-1024x500.png`
+- Phone screenshots: `store/screenshots/`
 - Category: Travel
-- Email: your support Gmail
-- Privacy policy: the `/privacy.html` URL
-- Content rating: IARC questionnaire. Not for under 13. No user-generated public feed.
-- Target audience: 18+ is safest (travel purchases off-app).
+- Privacy policy: `https://YOUR_HOST/privacy.html`
+- Content rating: IARC. Not for under 13. Target 18+.
 
-## 5. Data safety (fill exactly)
+## Data safety (fill exactly)
 
-Collected / shared:
+Google Sign-In is **required**.
 
-- **App activity / chat text** — sent to Google Gemini to generate answers. Chats and plan searches (destination, dates, travelers, budget) are stored on Aurea’s server so the product can reload and so the operator can review activity. Plan searches are kept up to 90 days even if the trip is not saved. Not sold. Not used for ads.
-- **Location** — not collected as GPS. Destination names you type are sent to OpenStreetMap and Open-Meteo.
+- **App activity / chat text** — sent to Google Gemini. Chats and plan searches (destination, dates, travelers, budget) are stored so the product can reload and so the operator can review activity. Plan searches are kept up to 90 days even if the trip is not saved. Not sold. Not used for ads.
+- **Location** — not collected as GPS. Destination names are sent to OpenStreetMap and Open-Meteo.
 - **Financial info** — not collected. Hotel booking happens on Booking.com / Airbnb.
-- **Account** — optional Google Sign-In. Name, email, and profile photo from Google, plus chats and trips if the user signs in. Not sold. Not used for ads.
+- **Account** — Google Sign-In. Name, email, and profile photo from Google, plus chats and trips. Users can delete the account in Profile. Not sold. Not used for ads.
 
-Encryption in transit: yes (HTTPS). Users can delete data by clearing app storage or uninstalling.
+Encryption in transit: yes (HTTPS).
 
-## 6. Internal testing first
+## Internal testing first
 
-Create an internal testing track, add your Gmail, install from Play, and confirm Ask + Plan work on a phone with **no** debug APK.
+Create an internal testing track, add your Gmail, install from Play, and confirm Ask + Plan on a phone with **no** debug APK.
 
-## 7. What this repo still cannot do
+## What this repo cannot do
 
-- Pay the Play one-time developer fee
-- Create your Google Cloud / Railway account
-- Buy a domain or TLS certificate
-- Pass review if Gemini is down or Nominatim blocks you
+- Pay the Play developer fee
+- Click Publish in Play Console
+- Redeploy Render / Railway for you

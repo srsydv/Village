@@ -65,7 +65,7 @@ router.get("/overview", async (_req, res) => {
         key: "asks",
         label: "Questions",
         value: asks,
-        note: "Chat questions sent to Aurea. Includes what they typed.",
+        note: "Chat questions sent to Safar. Includes what they typed.",
       },
       {
         key: "asksWeek",
@@ -77,7 +77,7 @@ router.get("/overview", async (_req, res) => {
         key: "plans",
         label: "Plans generated",
         value: plans,
-        note: "Itineraries Aurea built. Includes plans they did not save.",
+        note: "Itineraries Safar built. Includes plans they did not save.",
       },
       {
         key: "savedTrips",

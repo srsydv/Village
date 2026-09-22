@@ -1,6 +1,6 @@
 {
-  "appId": "com.aurea.travel",
-  "appName": "Aurea",
+  "appId": "com.safar.travel",
+  "appName": "Safar",
   "webDir": "client/dist",
   "server": {
     "androidScheme": "https"

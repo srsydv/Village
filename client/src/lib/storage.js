@@ -1,4 +1,4 @@
-const KEYS = {
+const LEGACY_KEYS = {
   profile: "aurea.profile",
   trips: "aurea.trips",
   chats: "aurea.chats",
@@ -7,6 +7,33 @@ const KEYS = {
   token: "aurea.token",
   account: "aurea.account",
 };
+
+const KEYS = {
+  profile: "safar.profile",
+  trips: "safar.trips",
+  chats: "safar.chats",
+  onboarded: "safar.onboarded",
+  visitor: "safar.visitor",
+  token: "safar.token",
+  account: "safar.account",
+};
+
+function migrateLegacy() {
+  try {
+    if (localStorage.getItem("safar.migrated") === "1") return;
+    for (const [name, oldKey] of Object.entries(LEGACY_KEYS)) {
+      const next = KEYS[name];
+      if (localStorage.getItem(next) == null && localStorage.getItem(oldKey) != null) {
+        localStorage.setItem(next, localStorage.getItem(oldKey));
+      }
+    }
+    localStorage.setItem("safar.migrated", "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+migrateLegacy();
 
 function read(key, fallback) {
   try {
@@ -26,6 +53,7 @@ export function getProfile() {
     name: "",
     homeCity: "",
     currency: "INR",
+    nationality: "India",
   });
 }
 
@@ -73,6 +101,12 @@ export function getChats() {
 export function saveChat(chat) {
   const chats = getChats();
   const next = [chat, ...chats.filter((c) => c.id !== chat.id)].slice(0, 24);
+  write(KEYS.chats, next);
+  return next;
+}
+
+export function deleteChat(id) {
+  const next = getChats().filter((c) => c.id !== id);
   write(KEYS.chats, next);
   return next;
 }
@@ -127,7 +161,7 @@ export function clearSession() {
 export function resetLocalUser() {
   clearSession();
   clearOnboarded();
-  write(KEYS.profile, { name: "", homeCity: "", currency: "INR" });
+  write(KEYS.profile, { name: "", homeCity: "", currency: "INR", nationality: "India" });
   write(KEYS.chats, []);
   write(KEYS.trips, []);
 }

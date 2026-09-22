@@ -48,7 +48,7 @@ function ActivityReply({ row, chats, trips, searches }) {
     return (
       <div>
         <p className="mb-2 text-xs text-[var(--muted)]">
-          {trip ? "Opened from their saved trip." : "What Aurea generated for this plan."}
+          {trip ? "Opened from their saved trip." : "What Safar generated for this plan."}
         </p>
         <ItineraryView plan={plan} weather={trip?.weather} />
       </div>
@@ -83,7 +83,7 @@ function ActivityReply({ row, chats, trips, searches }) {
 
   return (
     <p className="text-sm text-[var(--muted)]">
-      This older log only stored the destination, not Aurea’s full reply. New asks and plans keep the answer here. If
+      This older log only stored the destination, not Safar’s full reply. New asks and plans keep the answer here. If
       they saved the trip, open the Trips tab.
     </p>
   );
@@ -171,7 +171,7 @@ export function AdminUserScreen() {
 
           {tab === "chats" && (
             <section className="mt-5">
-              <p className="text-sm text-[var(--muted)]">What they typed, and what Aurea replied.</p>
+              <p className="text-sm text-[var(--muted)]">What they typed, and what Safar replied.</p>
               {chats.length === 0 ? (
                 <EmptyNote>No Ask chats stored for this person yet.</EmptyNote>
               ) : (
@@ -210,7 +210,7 @@ export function AdminUserScreen() {
 
           {tab === "activity" && (
             <section className="mt-5">
-              <p className="text-sm text-[var(--muted)]">Tap a row to read what they asked and what Aurea sent back.</p>
+              <p className="text-sm text-[var(--muted)]">Tap a row to read what they asked and what Safar sent back.</p>
               {days.length === 0 ? (
                 <EmptyNote>No activity logged for this email yet.</EmptyNote>
               ) : (
@@ -319,7 +319,7 @@ export function AdminUserScreen() {
 
           {tab === "trips" && (
             <section className="mt-5">
-              <p className="text-sm text-[var(--muted)]">Tap a trip to read the itinerary Aurea wrote.</p>
+              <p className="text-sm text-[var(--muted)]">Tap a trip to read the itinerary Safar wrote.</p>
               {trips.length === 0 ? (
                 <EmptyNote>No saved trips.</EmptyNote>
               ) : (

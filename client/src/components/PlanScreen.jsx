@@ -16,16 +16,19 @@ export function PlanScreen() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const incoming = params.get("q") || "";
+  const incomingDays = params.get("days") || "";
+  const incomingStart = params.get("start") || "";
+  const incomingNotes = params.get("notes") || "";
   const [form, setForm] = useState({
     destination: incoming,
-    startDate: tomorrowIso(),
-    days: "6",
+    startDate: incomingStart || tomorrowIso(),
+    days: incomingDays || "6",
     adults: 2,
     kids: 0,
     budget: "",
     style: "Balanced",
     interests: "",
-    notes: "",
+    notes: incomingNotes,
   });
   const [step, setStep] = useState("form");
   const [busy, setBusy] = useState(false);
@@ -40,9 +43,15 @@ export function PlanScreen() {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   useEffect(() => {
-    if (!incoming) return;
-    setForm((f) => ({ ...f, destination: incoming }));
-  }, [incoming]);
+    if (!incoming && !incomingNotes && !incomingDays && !incomingStart) return;
+    setForm((f) => ({
+      ...f,
+      destination: incoming || f.destination,
+      days: incomingDays || f.days,
+      startDate: incomingStart || f.startDate,
+      notes: incomingNotes || f.notes,
+    }));
+  }, [incoming, incomingDays, incomingNotes, incomingStart]);
 
   const packedPlan = (nextPlan, destination, country) => {
     const daysCount = Number(form.days) || 6;
@@ -93,14 +102,7 @@ export function PlanScreen() {
       setStep("itinerary");
       if (!nextCatalog) setError("Plan is ready. Live hotels could not load — you can still save.");
     } catch (err) {
-      try {
-        const nextCatalog = await fetchPlaces(pickedPlace?.label || form.destination);
-        setCatalog(nextCatalog);
-        setStep("itinerary");
-        setError(err.message || "The written plan failed. You can still pick live stays, or edit and try again.");
-      } catch {
-        setError(err.message || "Could not create this plan. Check your connection and try again.");
-      }
+      setError(err.message || "Could not create this plan. Check your connection and try again.");
     } finally {
       setBusy(false);
       setPhase("");
@@ -194,6 +196,7 @@ export function PlanScreen() {
             {busy ? phase || "Regenerating…" : "Regenerate"}
           </button>
         </div>
+        {busy && <PlanBusy phase={phase} />}
       </div>
     );
   }
@@ -203,8 +206,9 @@ export function PlanScreen() {
       <p className="kicker">Plan</p>
       <h1 className="serif mt-1 text-[2.1rem] leading-tight font-semibold">Where are you going?</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Pick a real place, dates, and who is travelling. Aurea writes the itinerary first. Hotels are optional after
+        Pick a real place, dates, and who is travelling. Safar writes the itinerary first. Hotels are optional after
         that. Plans are AI-generated and can be wrong. Visa steps are for you to file — we do not apply for you.
+        {profile.nationality ? ` Advice uses a ${profile.nationality} passport.` : ""}
       </p>
 
       <form
@@ -249,7 +253,12 @@ export function PlanScreen() {
           />
         </div>
         <Field label={`Budget (${profile.currency})`}>
-          <input className="field" placeholder="Optional — e.g. 1.2 lakh" value={form.budget} onChange={set("budget")} />
+          <input
+            className="field"
+            placeholder={profile.currency === "INR" ? "Optional — e.g. 1.2 lakh" : "Optional — e.g. 2500"}
+            value={form.budget}
+            onChange={set("budget")}
+          />
         </Field>
         <Field label="Style">
           <div className="flex flex-wrap gap-2">
@@ -289,6 +298,28 @@ export function PlanScreen() {
           </button>
         </div>
       </form>
+      {busy && <PlanBusy phase={phase} />}
+    </div>
+  );
+}
+
+function PlanBusy({ phase }) {
+  const steps = ["Looking up that place…", "Writing your days and finding stays…"];
+  const active = phase?.includes("Writing") ? 1 : 0;
+  return (
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-[430px] items-end bg-black/45 px-4 pb-[calc(6.4rem+env(safe-area-inset-bottom))]">
+      <div className="card w-full rounded-[1.5rem] p-5">
+        <p className="kicker">Working</p>
+        <p className="serif mt-1 text-2xl font-semibold">{phase || "Writing your plan…"}</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">This usually takes 15–30 seconds. Stay on this screen.</p>
+        <ol className="mt-4 space-y-2 text-sm">
+          {steps.map((label, i) => (
+            <li key={label} className={i === active ? "text-[var(--gold-bright)]" : "text-[var(--muted)]"}>
+              {i < active ? "✓" : i === active ? "●" : "○"} {label}
+            </li>
+          ))}
+        </ol>
+      </div>
     </div>
   );
 }

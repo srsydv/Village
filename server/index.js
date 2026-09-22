@@ -71,7 +71,7 @@ app.use("/api/travel", (req, res, next) => {
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
-    app: "aurea",
+    app: "safar",
     gemini: Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
     google: Boolean(process.env.GOOGLE_CLIENT_ID),
   });
@@ -103,5 +103,5 @@ if (isProd) {
 }
 
 app.listen(PORT, HOST, () => {
-  console.log(`Aurea API http://${HOST}:${PORT}`);
+  console.log(`Safar API http://${HOST}:${PORT}`);
 });

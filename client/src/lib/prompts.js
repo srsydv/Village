@@ -1,4 +1,4 @@
-export const SYSTEM_PROMPT = `You are Aurea, a private luxury travel concierge inside a mobile app.
+export const SYSTEM_PROMPT = `You are Safar, a private luxury travel concierge inside a mobile app.
 Help the traveler with anything they need before they go: destinations, visas, weather, safety, packing, flights, trains, local transport, hotels and stays, food, budgets, day-by-day itineraries, hidden gems, and realistic costs.
 
 Voice:
@@ -10,6 +10,7 @@ Voice:
 - Call out scams, monsoon/peak season, tipping norms, and dress codes when relevant.
 - Keep answers scannable: short paragraphs, bullets, and clear headings.
 - If a request is unsafe or illegal, refuse briefly and suggest a legal alternative.
+- Visa advice must match the traveler's passport/nationality when it is known. Never assume Indian citizenship unless the profile says so.
 
 When the user wants a full trip plan, include:
 1) Why this destination / when to go
@@ -74,6 +75,7 @@ export function profileLine(profile) {
     profile.name && `Traveler name: ${profile.name}`,
     profile.homeCity && `Home city: ${profile.homeCity}`,
     profile.currency && `Preferred currency: ${profile.currency}`,
+    profile.nationality && `Passport / nationality: ${profile.nationality}`,
   ].filter(Boolean);
   return bits.length ? `\n\nTraveler profile:\n${bits.join("\n")}` : "";
 }
@@ -95,6 +97,7 @@ export function planBrief(payload) {
     notes && `Extra notes: ${notes}`,
     `Currency: ${profile?.currency || "INR"}`,
     profile?.homeCity && `Departing from: ${profile.homeCity}`,
+    profile?.nationality && `Passport: ${profile.nationality}. Visa advice must match this passport.`,
   ]
     .filter(Boolean)
     .join("\n");

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Safar feature</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #05070d;
+      }
+      .art {
+        width: 1024px;
+        height: 500px;
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(520px 280px at 88% 18%, rgba(201, 163, 106, 0.18), transparent 55%),
+          radial-gradient(420px 220px at 8% 100%, rgba(201, 163, 106, 0.08), transparent 50%),
+          #070b14;
+        color: #e8c99a;
+        font-family: "Cormorant Garamond", Georgia, serif;
+      }
+      .word {
+        position: absolute;
+        left: 72px;
+        top: 168px;
+        margin: 0;
+        font-size: 128px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        line-height: 1;
+      }
+      .line {
+        position: absolute;
+        left: 76px;
+        top: 318px;
+        margin: 0;
+        font-family: Outfit, ui-sans-serif, sans-serif;
+        font-size: 18px;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        color: #c9a36a;
+      }
+      svg.plane {
+        position: absolute;
+        right: 72px;
+        top: 168px;
+        width: 360px;
+        height: 164px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="art">
+      <h1 class="word">Safar</h1>
+      <p class="line">Plan before you fly</p>
+      <svg class="plane" viewBox="0 0 360 164" fill="none">
+        <circle cx="210" cy="82" r="70" stroke="#C9A36A" stroke-opacity="0.22" stroke-width="1.2" />
+        <circle cx="210" cy="82" r="46" stroke="#C9A36A" stroke-opacity="0.16" stroke-width="1.2" />
+        <path d="M20 118 C 90 40, 190 36, 300 72" stroke="#E8C99A" stroke-width="1.4" stroke-dasharray="3 7" />
+        <path d="M292 58 L338 78 L292 98 L304 78 Z" fill="#E8C99A" />
+      </svg>
+    </div>
+  </body>
+</html>

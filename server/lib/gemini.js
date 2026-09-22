@@ -24,7 +24,7 @@ function modelsToTry() {
   return [...new Set([preferred, ...MODEL_FALLBACKS].filter(Boolean))];
 }
 
-export const SYSTEM_PROMPT = `You are Aurea, a private luxury travel concierge inside a mobile app.
+export const SYSTEM_PROMPT = `You are Safar, a private luxury travel concierge inside a mobile app.
 Help the traveler with anything they need before they go: destinations, visas, weather, safety, packing, flights, trains, local transport, hotels and stays, food, budgets, day-by-day itineraries, hidden gems, and realistic costs.
 
 Voice:
@@ -146,7 +146,7 @@ export async function generateTravelReply({ messages, system = SYSTEM_PROMPT, js
       const data = await res.json();
       const text = extractText(data).trim();
       if (!text) {
-        lastError = new Error("Aurea received an empty reply. Please try again.");
+        lastError = new Error("Safar received an empty reply. Please try again.");
         lastError.status = 502;
         continue;
       }
@@ -206,7 +206,7 @@ export async function streamTravelReply({ messages, system = SYSTEM_PROMPT, onDe
       }
     }
     if (full.trim()) return { text: full, model };
-    lastError = new Error("Aurea received an empty reply. Please try again.");
+    lastError = new Error("Safar received an empty reply. Please try again.");
   }
   throw lastError || new Error("Gemini stream failed");
 }
@@ -230,9 +230,9 @@ function friendlyGeminiError(status, body) {
   if (status === 401 || status === 403) {
     return "Gemini rejected the API key. Check GEMINI_API_KEY and that the Gemini API is enabled.";
   }
-  if (status === 429) return "Aurea is busy right now. Please wait a moment and try again.";
+  if (status === 429) return "Safar is busy right now. Please wait a moment and try again.";
   if (status === 404) {
-    return "Aurea could not use this Gemini model. Set GEMINI_MODEL=gemini-3.6-flash and try again.";
+    return "Safar could not use this Gemini model. Set GEMINI_MODEL=gemini-3.6-flash and try again.";
   }
   return `Gemini error (${status}): ${String(body).slice(0, 240)}`;
 }

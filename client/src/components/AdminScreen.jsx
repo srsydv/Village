@@ -69,7 +69,7 @@ export function AdminScreen() {
         ← Profile
       </Link>
       <p className="kicker mt-5">Operator</p>
-      <h1 className="serif gold-text mt-1 text-[2.15rem] leading-none font-semibold">Aurea desk</h1>
+      <h1 className="serif gold-text mt-1 text-[2.15rem] leading-none font-semibold">Safar desk</h1>
       <p className="mt-2 max-w-[34rem] text-sm leading-relaxed text-[var(--muted)]">
         How the product is being used — then open anyone to read what they asked.
       </p>

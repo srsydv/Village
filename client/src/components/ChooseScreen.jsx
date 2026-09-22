@@ -55,7 +55,10 @@ export function ChooseScreen() {
 
   return (
     <div className="safe-top safe-bottom px-5">
-      <p className="kicker">Choose</p>
+      <button type="button" className="text-sm text-[var(--gold)]" onClick={() => navigate(-1)}>
+        ← Back
+      </button>
+      <p className="kicker mt-4">Choose</p>
       <h1 className="serif mt-1 text-[2.05rem] leading-tight font-semibold">Pick stays, food, and sights.</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
         Live listings from OpenStreetMap. Weather from Open-Meteo. Booking opens partner sites.

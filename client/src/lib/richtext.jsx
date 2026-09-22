@@ -51,5 +51,5 @@ export function RichText({ text }) {
   });
   flushList();
 
-  return <div className="prose-aurea">{blocks}</div>;
+  return <div className="prose-safar">{blocks}</div>;
 }

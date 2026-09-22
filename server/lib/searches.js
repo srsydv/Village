@@ -16,14 +16,14 @@ function clip(value, max = 180) {
 }
 
 function visitorFrom(req) {
-  return clip(req.get("x-aurea-visitor") || req.body?.visitorId || "", 40);
+  return clip(req.get("x-safar-visitor") || req.get("x-aurea-visitor") || req.body?.visitorId || "", 40);
 }
 
 function profileFrom(req) {
   const profile = req.body?.profile || {};
   return {
-    name: clip(profile.name || req.get("x-aurea-name"), 80),
-    homeCity: clip(profile.homeCity || req.get("x-aurea-home"), 120),
+    name: clip(profile.name || req.get("x-safar-name") || req.get("x-aurea-name"), 80),
+    homeCity: clip(profile.homeCity || req.get("x-safar-home") || req.get("x-aurea-home"), 120),
   };
 }
 

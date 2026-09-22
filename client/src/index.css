@@ -194,43 +194,43 @@ textarea.field {
   padding-bottom: calc(6.4rem + env(safe-area-inset-bottom));
 }
 
-.prose-aurea h1,
-.prose-aurea h2,
-.prose-aurea h3 {
+.prose-safar h1,
+.prose-safar h2,
+.prose-safar h3 {
   font-family: var(--font-display);
   color: var(--cream);
   margin: 0.9rem 0 0.35rem;
   line-height: 1.2;
 }
 
-.prose-aurea h1 {
+.prose-safar h1 {
   font-size: 1.45rem;
 }
-.prose-aurea h2 {
+.prose-safar h2 {
   font-size: 1.25rem;
 }
-.prose-aurea h3 {
+.prose-safar h3 {
   font-size: 1.1rem;
 }
 
-.prose-aurea p {
+.prose-safar p {
   margin: 0.45rem 0;
   color: #d5d0c6;
   line-height: 1.55;
 }
 
-.prose-aurea ul,
-.prose-aurea ol {
+.prose-safar ul,
+.prose-safar ol {
   margin: 0.4rem 0 0.4rem 1.1rem;
   color: #d5d0c6;
 }
 
-.prose-aurea li {
+.prose-safar li {
   margin: 0.22rem 0;
   line-height: 1.5;
 }
 
-.prose-aurea strong {
+.prose-safar strong {
   color: var(--gold-bright);
   font-weight: 600;
 }

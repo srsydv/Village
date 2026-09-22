@@ -28,7 +28,7 @@ router.post("/chat", async (req, res) => {
   const stream = req.body?.stream !== false;
 
   if (!messages.length || !messages.some((m) => m.role === "user")) {
-    return res.status(400).json({ error: "Please ask Aurea something about your trip." });
+    return res.status(400).json({ error: "Please ask Safar something about your trip." });
   }
 
   const system = SYSTEM_PROMPT + profileLine(profile);
@@ -64,10 +64,10 @@ router.post("/chat", async (req, res) => {
     });
     const status = err.status || 500;
     if (res.headersSent) {
-      res.write(`data: ${JSON.stringify({ error: err.message || "Aurea could not reply." })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: err.message || "Safar could not reply." })}\n\n`);
       return res.end();
     }
-    return res.status(status).json({ error: err.message || "Aurea could not reply." });
+    return res.status(status).json({ error: err.message || "Safar could not reply." });
   }
 });
 
@@ -87,7 +87,7 @@ router.post("/plan", async (req, res) => {
   } = req.body || {};
 
   if (!destination || !String(destination).trim()) {
-    return res.status(400).json({ error: "Tell Aurea where you want to go." });
+    return res.status(400).json({ error: "Tell Safar where you want to go." });
   }
 
   const brief = [
@@ -169,8 +169,8 @@ router.post("/plan", async (req, res) => {
     return res.status(status).json({
       error:
         err instanceof SyntaxError
-          ? "Aurea drafted a plan but it could not be formatted. Please try again."
-          : err.message || "Aurea could not build this plan.",
+          ? "Safar drafted a plan but it could not be formatted. Please try again."
+          : err.message || "Safar could not build this plan.",
     });
   }
 });

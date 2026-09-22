@@ -25,7 +25,7 @@ export default function App() {
     return (
       <div className="app-frame">
         <div className="phone-shell grid min-h-dvh place-items-center">
-          <p className="kicker">Aurea</p>
+          <p className="kicker">Safar</p>
         </div>
       </div>
     );

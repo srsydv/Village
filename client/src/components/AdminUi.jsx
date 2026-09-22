@@ -77,7 +77,7 @@ export function AdminChatMessages({ messages }) {
           className={
             message.role === "user"
               ? "ml-8 rounded-[1.15rem] bg-[linear-gradient(180deg,#e8c99a,#c9a36a)] px-4 py-3 text-sm text-[#1a140c]"
-              : "card prose-aurea mr-6 rounded-[1.15rem] px-4 py-3 text-sm"
+              : "card prose-safar mr-6 rounded-[1.15rem] px-4 py-3 text-sm"
           }
         >
           <p
@@ -85,7 +85,7 @@ export function AdminChatMessages({ messages }) {
               message.role === "user" ? "text-[#5a4630]" : "text-[var(--gold)]"
             }`}
           >
-            {message.role === "assistant" ? "Aurea" : "They asked"}
+            {message.role === "assistant" ? "Safar" : "They asked"}
           </p>
           {message.role === "assistant" ? (
             <RichText text={message.content || "—"} />

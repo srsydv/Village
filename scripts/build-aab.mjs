@@ -41,7 +41,7 @@ loadEnv(".env.local");
 
 const publicUrl = String(process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
 if (!publicUrl.startsWith("https://")) {
-  console.error("Set PUBLIC_APP_URL to your live HTTPS origin, e.g. https://aurea.example.com");
+  console.error("Set PUBLIC_APP_URL to your live HTTPS origin, e.g. https://safar.example.com");
   console.error("Host the Node app first (Docker / Railway / Render). The Play bundle must not contain GEMINI_API_KEY.");
   process.exit(1);
 }
@@ -103,7 +103,7 @@ if (!fs.existsSync(built)) {
 
 const outDir = path.join(root, "release");
 fs.mkdirSync(outDir, { recursive: true });
-const dest = path.join(outDir, "Aurea-play.aab");
+const dest = path.join(outDir, "Safar-play.aab");
 fs.copyFileSync(built, dest);
 console.log(`\nPlay bundle:\n${dest}\n`);
 console.log("Upload this AAB in Play Console (internal testing first).");

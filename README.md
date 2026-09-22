@@ -1,4 +1,4 @@
-# Aurea
+# Safar
 
 Private AI travel concierge. Ask for destinations, expenses, hotels, visas, packing, and day-by-day plans before you fly. Powered by Google Gemini.
 
@@ -33,7 +33,7 @@ Activity (who asked / planned what) is written to `.data/activity.jsonl` locally
 - **Plan** — itinerary first, then optional stays / food / sights
 - **Trips** — saved on the device; share as text
 
-Map data © OpenStreetMap contributors. Weather: Open-Meteo. Booking.com, Airbnb, and Zomato open as partner sites — Aurea does not take hotel payment. Visa steps are information only; you apply yourself.
+Map data © OpenStreetMap contributors. Weather: Open-Meteo. Booking.com, Airbnb, and Zomato open as partner sites — Safar does not take hotel payment. Visa steps are information only; you apply yourself.
 
 ## Test APK (not Play)
 
@@ -41,7 +41,7 @@ Map data © OpenStreetMap contributors. Weather: Open-Meteo. Booking.com, Airbnb
 npm run apk
 ```
 
-Writes `release/Aurea-testing.apk`. Debug only. Do not upload it to Play.
+Writes `release/Safar-testing.apk`. Debug only. Do not upload it to Play.
 
 ## Google Play
 
@@ -49,13 +49,13 @@ Host the Node app on HTTPS (see `Dockerfile`), keep `GEMINI_API_KEY` only on the
 
 ```bash
 # in .env: PUBLIC_APP_URL=https://your-domain
-npm run play:key    # once — back up android/aurea-upload.jks
-npm run play        # writes release/Aurea-play.aab
+npm run play:key    # once — back up android/safar-upload.jks
+npm run play        # writes release/Safar-play.aab
 ```
 
 Privacy policy for the Console: `https://your-domain/privacy.html`
 
-Full checklist: [PLAY_STORE.md](PLAY_STORE.md). Listing images: `store/play-icon-512.png`, `store/play-feature-1024x500.png`.
+Upload walkthrough: [PLAY_UPLOAD.md](PLAY_UPLOAD.md). Checklist: [PLAY_STORE.md](PLAY_STORE.md). Listing images: `store/play-icon-512.png`, `store/play-feature-1024x500.png`.
 
 ## Stack
 

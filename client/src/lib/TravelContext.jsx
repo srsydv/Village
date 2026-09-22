@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchAccount, syncAccount } from "./api.js";
 import {
+  deleteChat as removeChatRecord,
   deleteTrip as removeTrip,
   getAccount,
   getAuthToken,
@@ -17,7 +18,7 @@ import {
   setOnboarded as persistOnboarded,
 } from "./storage.js";
 
-const emptyProfile = { name: "", homeCity: "", currency: "INR" };
+const emptyProfile = { name: "", homeCity: "", currency: "INR", nationality: "India" };
 const TravelContext = createContext(null);
 
 function signedInNow() {
@@ -45,6 +46,7 @@ export function TravelProvider({ children }) {
       name: user.name || "",
       homeCity: user.homeCity || "",
       currency: user.currency || "INR",
+      nationality: user.nationality || "India",
     };
     persistProfile(nextProfile);
     saveSession({ token: token || getAuthToken(), user });
@@ -72,6 +74,7 @@ export function TravelProvider({ children }) {
         name: nextProfile.name,
         homeCity: nextProfile.homeCity,
         currency: nextProfile.currency,
+        nationality: nextProfile.nationality,
         chats: nextChats,
         trips: nextTrips,
       }).catch(() => {});
@@ -86,7 +89,10 @@ export function TravelProvider({ children }) {
       return undefined;
     }
     let cancelled = false;
-    fetchAccount()
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Account check timed out.")), 7000);
+    });
+    Promise.race([fetchAccount(), timeout])
       .then((user) => {
         if (cancelled) return;
         if (!user) {
@@ -139,6 +145,7 @@ export function TravelProvider({ children }) {
           name: merged.name,
           homeCity: merged.homeCity,
           currency: merged.currency,
+          nationality: merged.nationality,
           chats: stateRef.current.chats,
           trips: stateRef.current.trips,
         }).catch(() => {});
@@ -174,6 +181,11 @@ export function TravelProvider({ children }) {
       },
       addChat: (chat) => {
         const next = persistChat(chat);
+        setChats(next);
+        queueSync();
+      },
+      removeChat: (id) => {
+        const next = removeChatRecord(id);
         setChats(next);
         queueSync();
       },

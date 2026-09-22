@@ -1,4 +1,4 @@
-const UA = "AureaTravel/1.0 (https://aurea-jrvb.onrender.com; travel concierge)";
+const UA = "SafarTravel/1.0 (https://aurea-jrvb.onrender.com; travel concierge)";
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 const OVERPASS = [
   "https://overpass-api.de/api/interpreter",

@@ -90,7 +90,7 @@ await run("./gradlew", ["assembleDebug"], { JAVA_HOME: javaHome, ANDROID_HOME: a
 const built = path.join(androidDir, "app/build/outputs/apk/debug/app-debug.apk");
 const outDir = path.join(root, "release");
 fs.mkdirSync(outDir, { recursive: true });
-const dest = path.join(outDir, "Aurea-testing.apk");
+const dest = path.join(outDir, "Safar-testing.apk");
 fs.copyFileSync(built, dest);
 console.log(`\nAPK ready:\n${dest}\n`);
 console.log("Send that file. On Android: open it, allow Install from this source, then Install.");

@@ -53,7 +53,7 @@ function payload({ messages, system, json = false }) {
 
 function friendlyGeminiError(status, body) {
   if (status === 401 || status === 403) return "Gemini rejected the API key.";
-  if (status === 429) return "Aurea is busy right now. Please wait a moment and try again.";
+  if (status === 429) return "Safar is busy right now. Please wait a moment and try again.";
   if (status === 404) return "That Gemini model is not available on this key.";
   return `Gemini error (${status}): ${String(body).slice(0, 180)}`;
 }
@@ -74,7 +74,7 @@ export async function generateDirect({ messages, system, json = false }) {
       const data = await res.json();
       const text = extractText(data).trim();
       if (!text) {
-        lastError = new Error("Aurea received an empty reply. Please try again.");
+        lastError = new Error("Safar received an empty reply. Please try again.");
         continue;
       }
       return { text, model };
