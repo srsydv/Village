@@ -3,7 +3,8 @@
   "appName": "Safar",
   "webDir": "client/dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "hostname": "aurea-jrvb.onrender.com"
   },
   "android": {
     "allowMixedContent": false

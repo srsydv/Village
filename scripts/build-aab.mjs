@@ -46,6 +46,17 @@ if (!publicUrl.startsWith("https://")) {
   process.exit(1);
 }
 
+function applyCapacitorHostname(origin) {
+  const configPath = path.join(root, "capacitor.config.json");
+  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  const hostname = new URL(origin).hostname;
+  config.server = { ...(config.server || {}), androidScheme: "https", hostname };
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+  console.log(`WebView origin: https://${hostname}`);
+}
+
+applyCapacitorHostname(publicUrl);
+
 const androidDir = path.join(root, "android");
 const propsPath = path.join(androidDir, "keystore.properties");
 if (!fs.existsSync(propsPath)) {

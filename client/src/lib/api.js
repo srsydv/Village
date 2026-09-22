@@ -8,6 +8,55 @@ function apiUrl(path) {
   return `${base}${path}`;
 }
 
+function isNativeApp() {
+  return Boolean(window.Capacitor?.isNativePlatform?.());
+}
+
+function parseBody(payload) {
+  if (payload == null) return {};
+  if (typeof payload === "object") return payload;
+  const text = String(payload).trim();
+  if (!text) return {};
+  if (text.startsWith("<")) {
+    throw new Error("Could not reach the Safar server from this phone.");
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
+async function apiFetch(path, options = {}) {
+  const url = apiUrl(path);
+  const nativeHttp = isNativeApp() ? window.Capacitor?.Plugins?.CapacitorHttp : null;
+  if (nativeHttp) {
+    let data;
+    if (options.body != null) {
+      data = typeof options.body === "string" ? parseBody(options.body) : options.body;
+    }
+    const result = await nativeHttp.request({
+      url,
+      method: String(options.method || "GET").toUpperCase(),
+      headers: options.headers || {},
+      data,
+    });
+    return {
+      ok: result.status >= 200 && result.status < 300,
+      status: result.status,
+      json: async () => parseBody(result.data),
+    };
+  }
+
+  const res = await fetch(url, options);
+  return {
+    ok: res.ok,
+    status: res.status,
+    json: async () => parseBody(await res.text()),
+    body: res.body,
+  };
+}
+
 function activityHeaders() {
   const profile = getProfile();
   const token = getAuthToken();
@@ -22,18 +71,18 @@ function activityHeaders() {
 export async function fetchAuthConfig() {
   let res;
   try {
-    res = await fetch(apiUrl("/api/auth/config"));
+    res = await apiFetch("/api/auth/config");
   } catch {
     throw new Error("Could not reach the Safar server. Check your connection.");
   }
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not load sign-in settings.");
   return data;
 }
 
 export async function signInWithGoogleCredential(credential) {
   const profile = getProfile();
-  const res = await fetch(apiUrl("/api/auth/google"), {
+  const res = await apiFetch("/api/auth/google", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -46,7 +95,7 @@ export async function signInWithGoogleCredential(credential) {
       nationality: profile.nationality,
     }),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Google sign-in failed.");
   return data;
 }
@@ -54,16 +103,16 @@ export async function signInWithGoogleCredential(credential) {
 export async function fetchAccount() {
   const token = getAuthToken();
   if (!token) return null;
-  const res = await fetch(apiUrl("/api/auth/me"), { headers: activityHeaders() });
+  const res = await apiFetch("/api/auth/me", { headers: activityHeaders() });
   if (res.status === 401) return null;
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not load account.");
   return data.user;
 }
 
 async function adminGet(path) {
-  const res = await fetch(apiUrl(path), { headers: activityHeaders() });
-  const data = await res.json().catch(() => ({}));
+  const res = await apiFetch(path, { headers: activityHeaders() });
+  const data = await res.json();
   if (res.status === 403) throw new Error("Admin only.");
   if (!res.ok) throw new Error(data.error || "Could not load admin data.");
   return data;
@@ -84,11 +133,11 @@ export async function fetchAdminUser(id) {
 export async function deleteAccount() {
   const token = getAuthToken();
   if (!token) throw new Error("Sign in again to delete this account.");
-  const res = await fetch(apiUrl("/api/auth/me"), {
+  const res = await apiFetch("/api/auth/me", {
     method: "DELETE",
     headers: activityHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not delete this account.");
   return true;
 }
@@ -96,12 +145,12 @@ export async function deleteAccount() {
 export async function syncAccount(payload) {
   const token = getAuthToken();
   if (!token) return null;
-  const res = await fetch(apiUrl("/api/auth/me"), {
+  const res = await apiFetch("/api/auth/me", {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...activityHeaders() },
     body: JSON.stringify(payload),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not save account.");
   return data.user;
 }
@@ -112,6 +161,19 @@ export async function askSafar({ messages, profile, onDelta }) {
       messages: messages.slice(-16),
       system: SYSTEM_PROMPT + profileLine(profile),
     });
+    onDelta?.(text, text);
+    return text;
+  }
+
+  if (isNativeApp()) {
+    const res = await apiFetch("/api/travel/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...activityHeaders() },
+      body: JSON.stringify({ messages, profile, stream: false, visitorId: getVisitorId() }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Safar could not reply.");
+    const text = data.text || "";
     onDelta?.(text, text);
     return text;
   }
@@ -171,10 +233,10 @@ export async function suggestPlaces(query) {
   if (hasDirectGemini()) {
     return suggestPlacesDirect(q);
   }
-  const res = await fetch(apiUrl(`/api/places/suggest?q=${encodeURIComponent(q)}`), {
+  const res = await apiFetch(`/api/places/suggest?q=${encodeURIComponent(q)}`, {
     headers: activityHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not look up that place.");
   return Array.isArray(data.places) ? data.places : [];
 }
@@ -183,10 +245,10 @@ export async function fetchPlaces(query) {
   if (hasDirectGemini()) {
     return lookupDestinationDirect(query);
   }
-  const res = await fetch(apiUrl(`/api/places?q=${encodeURIComponent(query)}`), {
+  const res = await apiFetch(`/api/places?q=${encodeURIComponent(query)}`, {
     headers: activityHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not load places for that destination.");
   return data;
 }
@@ -205,12 +267,12 @@ export async function createPlan(payload) {
     }
   }
 
-  const res = await fetch(apiUrl("/api/travel/plan"), {
+  const res = await apiFetch("/api/travel/plan", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...activityHeaders() },
     body: JSON.stringify({ ...payload, visitorId: getVisitorId() }),
   });
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Safar could not build this plan.");
   return data.plan;
 }

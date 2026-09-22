@@ -24,6 +24,18 @@ Do **not** upload `release/Safar-testing.apk`. That is a debug APK.
 
 4. Confirm `release/Safar-play.aab` exists on this machine.
 
+5. Phone sign-in needs an **Android** OAuth client in the same Google Cloud project as the Web client. Create it at [Google Cloud credentials](https://console.cloud.google.com/apis/credentials):
+
+   | Field | Value |
+   | --- | --- |
+   | Application type | Android |
+   | Name | Safar Android |
+   | Package name | `com.safar.travel` |
+   | SHA-1 (this test APK) | `61:5D:98:2F:6F:0D:99:B4:94:17:58:57:26:AC:47:93:93:DA:9B:8A` |
+   | SHA-1 (Play upload key) | `F6:DE:94:99:72:8E:E3:F7:AD:91:06:A7:77:DA:17:DE:78:B8:DB:F1` |
+
+   Create one Android client per SHA-1 (or add both fingerprints if the form allows). After Play App Signing is on, add the **App signing key** SHA-1 from Play Console too. Do not put the Android client ID in the app. The Web client ID stays on the server.
+
 ---
 
 ## 1. Open a Play developer account
