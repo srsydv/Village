@@ -20,7 +20,7 @@ export function PrivacyPolicy() {
         <section>
           <h2 className="serif text-xl font-semibold text-[var(--cream)]">Who we are</h2>
           <p className="mt-2">
-            Safar (package <span className="text-[var(--gold-bright)]">com.safar.travel</span>) is operated by the
+            Safar (package <span className="text-[var(--gold-bright)]">com.safartravel.app</span>) is operated by the
             developer who published this listing. Contact: the email on the Play Store listing.
           </p>
         </section>

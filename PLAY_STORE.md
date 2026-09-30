@@ -1,6 +1,6 @@
 # Play Store (Safar)
 
-Package: `com.safar.travel`  
+Package: `com.safartravel.app`  
 Version: `1.0.0` (versionCode 1)
 
 **Step-by-step Console upload:** [PLAY_UPLOAD.md](PLAY_UPLOAD.md)

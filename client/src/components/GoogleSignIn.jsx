@@ -41,7 +41,7 @@ function signInError(err) {
     return "Add a Google account on this phone, then try again.";
   }
   if (/reauth|UNREGISTERED|Api Console|10\b/i.test(message + code)) {
-    return "This Android app is not registered in Google Cloud. Add an Android OAuth client for com.safar.travel.";
+    return "This Android app is not registered in Google Cloud. Add an Android OAuth client for com.safartravel.app.";
   }
   return message || "Google sign-in failed.";
 }

@@ -1,5 +1,5 @@
 {
-  "appId": "com.safar.travel",
+  "appId": "com.safartravel.app",
   "appName": "Safar",
   "webDir": "client/dist",
   "server": {
