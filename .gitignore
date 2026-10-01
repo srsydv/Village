@@ -42,6 +42,10 @@ yarn-error.log*
 /android/*.keystore
 /android/keystore.properties
 
+# Play app-signing certificates downloaded from Play Console
+/certificates.zip
+*.der
+
 # local file-backed store when MONGODB_URI is unset
 /.data/
 
