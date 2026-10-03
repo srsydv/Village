@@ -63,21 +63,27 @@ export function PlacePicker({ catalog, picks, onToggle, tab, onTab }) {
   );
 }
 
-export function PlaceCard({ place, city, selected, onToggle, compact }) {
+export function PlaceCard({ place, city, selected, onToggle, visited, onVisited, compact }) {
   const links = placeLinks(place, city);
+  const marking = typeof onVisited === "function";
+  const on = marking ? Boolean(visited) : selected;
   return (
-    <article className={`card rounded-[1.25rem] p-3.5 ${selected ? "ring-1 ring-[var(--gold)]" : ""}`}>
-      <button type="button" className="flex w-full items-start gap-3 text-left" onClick={() => onToggle?.()}>
+    <article className={`card rounded-[1.25rem] p-3.5 ${!marking && selected ? "ring-1 ring-[var(--gold)]" : ""}`}>
+      <button
+        type="button"
+        className={`flex w-full items-start gap-3 text-left ${marking ? "min-h-11" : ""}`}
+        onClick={() => (marking ? onVisited() : onToggle?.())}
+      >
         <span
-          className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[0.65rem] ${
-            selected ? "border-[var(--gold)] bg-[var(--gold)] text-[#1a140c]" : "border-[var(--line)] text-transparent"
-          }`}
+          className={`mt-0.5 grid shrink-0 place-items-center rounded-full border text-[0.65rem] ${
+            marking ? "h-6 w-6" : "h-5 w-5"
+          } ${on ? "border-[var(--gold)] bg-[var(--gold)] text-[#1a140c]" : "border-[var(--line)] text-transparent"}`}
         >
           ✓
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium leading-snug">{place.name}</p>
+            <p className={`text-sm font-medium leading-snug ${marking && visited ? "text-[var(--muted)]" : ""}`}>{place.name}</p>
             {place.stars ? <span className="shrink-0 text-xs text-[var(--gold-bright)]">{place.stars}★</span> : null}
           </div>
           <p className="mt-0.5 text-[0.7rem] capitalize text-[var(--muted)]">

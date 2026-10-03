@@ -1,6 +1,16 @@
 import { generateDirect, hasDirectGemini } from "./geminiDirect.js";
 import { lookupDestinationDirect, suggestPlacesDirect } from "./placesDirect.js";
-import { PLAN_JSON_INSTRUCTIONS, SYSTEM_PROMPT, parsePlanJson, planBrief, profileLine } from "./prompts.js";
+import {
+  DAY_JSON_INSTRUCTIONS,
+  FLIGHT_PICKS_INSTRUCTIONS,
+  PLAN_JSON_INSTRUCTIONS,
+  SYSTEM_PROMPT,
+  WEEKEND_JSON_INSTRUCTIONS,
+  flightPicksBrief,
+  parsePlanJson,
+  planBrief,
+  profileLine,
+} from "./prompts.js";
 import { getAuthToken, getChats, getProfile, getTrips, getVisitorId } from "./storage.js";
 
 function apiUrl(path) {
@@ -275,4 +285,124 @@ export async function createPlan(payload) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Safar could not build this plan.");
   return data.plan;
+}
+
+function asDay(parsed, dayNumber) {
+  const raw =
+    parsed?.morning || parsed?.afternoon || parsed?.evening || parsed?.title
+      ? parsed
+      : parsed?.day && typeof parsed.day === "object"
+        ? parsed.day
+        : Array.isArray(parsed?.days)
+          ? parsed.days[0]
+          : null;
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Safar drafted this day but it could not be formatted. The old day is unchanged.");
+  }
+  return {
+    day: dayNumber,
+    title: String(raw.title || `Day ${dayNumber}`).trim(),
+    morning: String(raw.morning || "").trim(),
+    afternoon: String(raw.afternoon || "").trim(),
+    evening: String(raw.evening || "").trim(),
+    food: String(raw.food || "").trim(),
+    cost: String(raw.cost || "").trim(),
+  };
+}
+
+export async function suggestFlights(journey) {
+  const brief = flightPicksBrief(journey);
+  if (hasDirectGemini()) {
+    const { text } = await generateDirect({
+      messages: [{ role: "user", content: brief }],
+      system: `${SYSTEM_PROMPT}\n\n${FLIGHT_PICKS_INSTRUCTIONS}${profileLine(journey?.profile)}`,
+      json: true,
+    });
+    const parsed = parsePlanJson(text);
+    return Array.isArray(parsed?.flightPicks) ? parsed.flightPicks.slice(0, 3) : [];
+  }
+  const res = await apiFetch("/api/travel/flights", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ ...journey, visitorId: getVisitorId() }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not choose flights for this date.");
+  return Array.isArray(data.flightPicks) ? data.flightPicks.slice(0, 3) : [];
+}
+
+export async function rewriteDay(payload) {
+  const dayNumber = Number(payload?.dayNumber);
+  const note = String(payload?.comment || "").trim();
+  const otherDays = Array.isArray(payload?.otherDays) ? payload.otherDays : [];
+  const brief = [
+    `Rewrite only day ${dayNumber} of a trip to ${String(payload?.destination || "").trim()}.`,
+    payload?.country && `Country: ${payload.country}`,
+    payload?.dayDate && `This day is: ${payload.dayDate}`,
+    `Currency: ${payload?.profile?.currency || "INR"}`,
+    payload?.profile?.homeCity && `Departing from: ${payload.profile.homeCity}`,
+    payload?.profile?.nationality && `Passport: ${payload.profile.nationality}`,
+    otherDays.length
+      ? `Other days already planned. Do not repeat these places:\n${otherDays
+          .map((day) => `Day ${day.day}: ${[day.title, day.morning, day.afternoon, day.evening].filter(Boolean).join(" — ")}`)
+          .join("\n")}`
+      : "",
+    note
+      ? `The traveler wants this day to include: ${note}. Follow that text.`
+      : "The traveler left no extra note. Write a strong day yourself that fits the trip and does not repeat the other days.",
+    `Set "day" to ${dayNumber}.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  if (hasDirectGemini()) {
+    const { text } = await generateDirect({
+      messages: [{ role: "user", content: brief }],
+      system: `${SYSTEM_PROMPT}\n\n${DAY_JSON_INSTRUCTIONS}${profileLine(payload.profile)}`,
+      json: true,
+    });
+    return asDay(parsePlanJson(text), dayNumber);
+  }
+
+  const res = await apiFetch("/api/travel/day", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ ...payload, comment: note, visitorId: getVisitorId() }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Safar could not rewrite this day. The old day is unchanged.");
+  return data.day;
+}
+
+export async function suggestWeekend(profile) {
+  if (hasDirectGemini()) {
+    const { text } = await generateDirect({
+      messages: [
+        {
+          role: "user",
+          content: `Suggest one 2-day weekend trip from ${profile?.homeCity}. Currency: ${profile?.currency || "INR"}. Do not choose the home city.`,
+        },
+      ],
+      system: `${SYSTEM_PROMPT}\n\n${WEEKEND_JSON_INSTRUCTIONS}${profileLine(profile)}`,
+      json: true,
+    });
+    const parsed = parsePlanJson(text);
+    const destination = String(parsed?.destination || "").trim();
+    if (!destination) throw new Error("Safar could not find a weekend.");
+    return {
+      destination,
+      country: String(parsed.country || "").trim(),
+      title: String(parsed.title || destination).trim(),
+      summary: String(parsed.summary || "").trim(),
+    };
+  }
+
+  const res = await apiFetch("/api/travel/weekend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ profile, homeCity: profile?.homeCity, visitorId: getVisitorId() }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Safar could not find a weekend.");
+  return data.idea;
 }

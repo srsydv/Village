@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { chatPreview } from "../lib/chatHints.js";
+import { monthPeek } from "../lib/calendar.js";
 import { daysUntil, formatTripSpan } from "../lib/dates.js";
 import { CATEGORIES, DESTINATIONS } from "../lib/destinations.js";
+import { toggleMap } from "../lib/tripChecks.js";
+import { deskTrip } from "../lib/tripPhase.js";
 import { useTravel } from "../lib/TravelContext.jsx";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
+import { PrepDesk, TodayDesk } from "./TodayDesk.jsx";
+import { WeekendCard } from "./WeekendCard.jsx";
 
 function greeting() {
   const hour = new Date().getHours();
@@ -14,16 +19,17 @@ function greeting() {
 }
 
 export function HomeScreen() {
-  const { profile, trips, chats } = useTravel();
+  const { profile, trips, chats, addTrip } = useTravel();
   const navigate = useNavigate();
   const [dest, setDest] = useState("");
   const featured = DESTINATIONS[new Date().getDate() % DESTINATIONS.length];
   const moreIdeas = DESTINATIONS.filter((d) => d.id !== featured.id).slice(0, 5);
   const lastChat = chats.find((c) => (c.messages || []).some((m) => m.content));
-  const nextTrip = trips
-    .map((trip) => ({ trip, days: daysUntil(trip.plan?.startDate) }))
-    .filter((row) => row.days != null && row.days >= 0)
-    .sort((a, b) => a.days - b.days)[0];
+  const desk = deskTrip(trips);
+  const peek = monthPeek(trips);
+  const patchTrip = (trip, bucket, id) => {
+    addTrip({ ...trip, [bucket]: toggleMap(trip[bucket], id) });
+  };
 
   const goPlan = (label) => {
     const q = String(label || dest || "").trim();
@@ -53,6 +59,16 @@ export function HomeScreen() {
         </Link>
       </header>
 
+      {peek ? (
+        <Link
+          to={`/trips?day=${encodeURIComponent(peek.day)}`}
+          className="mt-4 inline-flex items-center gap-2 text-sm text-[var(--gold-bright)]"
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--gold)]" aria-hidden="true" />
+          {peek.text}
+        </Link>
+      ) : null}
+
       <form
         className="mt-6"
         onSubmit={(e) => {
@@ -79,22 +95,23 @@ export function HomeScreen() {
         </button>
       </form>
 
-      {nextTrip && (
-        <Link to={`/trips/${nextTrip.trip.id}`} className="card mt-4 block rounded-[1.3rem] px-4 py-3">
-          <p className="kicker">Coming up</p>
-          <p className="mt-1 text-sm font-medium">
-            {nextTrip.trip.plan?.title || nextTrip.trip.plan?.destination}
-            <span className="text-[var(--muted)]">
-              {" · "}
-              {nextTrip.days === 0
-                ? "starts today"
-                : nextTrip.days === 1
-                  ? "tomorrow"
-                  : `in ${nextTrip.days} days`}
-            </span>
-          </p>
-        </Link>
+      {desk?.phase === "prep" && (
+        <>
+          <PrepDesk trip={desk.trip} profile={profile} onToggle={(id) => patchTrip(desk.trip, "checks", id)} />
+          <Link to={`/trips/${desk.trip.id}`} className="mt-2 block text-center text-xs text-[var(--gold)]">
+            Open this trip
+          </Link>
+        </>
       )}
+      {desk?.phase === "on-trip" && (
+        <>
+          <TodayDesk trip={desk.trip} onToggleVisit={(id) => patchTrip(desk.trip, "visited", id)} />
+          <Link to={`/trips/${desk.trip.id}`} className="mt-2 block text-center text-xs text-[var(--gold)]">
+            Open this trip
+          </Link>
+        </>
+      )}
+      {!desk && <WeekendCard profile={profile} />}
 
       <button
         type="button"

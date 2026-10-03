@@ -16,6 +16,7 @@ export function DestinationSuggest({
   const [hits, setHits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
+  const [note, setNote] = useState("");
 
   useEffect(() => {
     const q = String(value || "").trim();
@@ -27,22 +28,26 @@ export function DestinationSuggest({
       setHits([]);
       setOpen(false);
       setLoading(false);
+      setNote("");
       return undefined;
     }
 
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
+      setNote("");
       try {
         const places = await suggestPlaces(q);
         if (ctrl.signal.aborted) return;
         setHits(places);
         setActive(0);
         setOpen(places.length > 0);
-      } catch {
+        setNote(places.length ? "" : "No matching place. Try the city name.");
+      } catch (err) {
         if (!ctrl.signal.aborted) {
           setHits([]);
           setOpen(false);
+          setNote(err?.message || "Place search is unavailable. You can still type the city.");
         }
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
@@ -112,6 +117,7 @@ export function DestinationSuggest({
           Looking…
         </p>
       )}
+      {note && !open && <p className="mt-1.5 text-xs leading-snug text-[var(--rose)]">{note}</p>}
       {open && hits.length > 0 && (
         <ul
           id={listId}

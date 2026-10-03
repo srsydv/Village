@@ -32,13 +32,25 @@ export function formatTripSpan(startIso, days) {
   return `${formatDay(startIso)} – ${formatDay(end)}`;
 }
 
-export function daysUntil(iso) {
+export function daysUntil(iso, now = new Date()) {
   if (!iso) return null;
   const start = new Date(`${iso}T12:00:00`);
   if (Number.isNaN(start.getTime())) return null;
-  const today = new Date();
+  const today = new Date(now);
   today.setHours(12, 0, 0, 0);
   return Math.round((start.getTime() - today.getTime()) / 86400000);
+}
+
+export function isoWeekKey(now = new Date()) {
+  const date = new Date(now);
+  date.setHours(12, 0, 0, 0);
+  const day = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - day + 3);
+  const weekYear = date.getFullYear();
+  const yearStart = new Date(weekYear, 0, 4);
+  yearStart.setHours(12, 0, 0, 0);
+  const week = 1 + Math.round(((date - yearStart) / 86400000 - 3 + ((yearStart.getDay() + 6) % 7)) / 7);
+  return `${weekYear}-W${String(week).padStart(2, "0")}`;
 }
 
 export function timeAgo(ts) {
