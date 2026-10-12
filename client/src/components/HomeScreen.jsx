@@ -91,7 +91,7 @@ export function HomeScreen() {
           Plan this trip
         </button>
         <button type="button" className="mt-2 w-full py-2 text-xs text-[var(--muted)]" onClick={() => navigate("/ask")}>
-          I just have a question
+          Ask anything
         </button>
       </form>
 

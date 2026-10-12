@@ -3,6 +3,7 @@ import { lookupDestinationDirect, suggestPlacesDirect } from "./placesDirect.js"
 import {
   DAY_JSON_INSTRUCTIONS,
   FLIGHT_PICKS_INSTRUCTIONS,
+  ASK_SYSTEM_PROMPT,
   PLAN_JSON_INSTRUCTIONS,
   SYSTEM_PROMPT,
   WEEKEND_JSON_INSTRUCTIONS,
@@ -11,6 +12,7 @@ import {
   planBrief,
   profileLine,
 } from "./prompts.js";
+import { applyStyleBudget } from "./styleBudget.js";
 import { getAuthToken, getChats, getProfile, getTrips, getVisitorId } from "./storage.js";
 
 function apiUrl(path) {
@@ -165,11 +167,77 @@ export async function syncAccount(payload) {
   return data.user;
 }
 
+export async function checkUsername(q) {
+  const res = await apiFetch(`/api/auth/username?q=${encodeURIComponent(q || "")}`, {
+    headers: activityHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not check that username.");
+  return data;
+}
+
+export async function lookupShareUser(query) {
+  const res = await apiFetch("/api/shares/lookup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ query }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not search.");
+  return data;
+}
+
+export async function shareTripWithUser({ tripId, userId }) {
+  const res = await apiFetch("/api/shares", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ tripId, userId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not share this trip.");
+  return data.share;
+}
+
+export async function fetchOutgoingShares(tripId) {
+  const res = await apiFetch(`/api/shares/outgoing?tripId=${encodeURIComponent(tripId)}`, {
+    headers: activityHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not load who this is shared with.");
+  return data.shares || [];
+}
+
+export async function unshareTrip(id) {
+  const res = await apiFetch(`/api/shares/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: activityHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not stop sharing.");
+  return true;
+}
+
+export async function fetchIncomingShares() {
+  const res = await apiFetch("/api/shares/incoming", { headers: activityHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not load shared trips.");
+  return data.shares || [];
+}
+
+export async function fetchIncomingShare(id) {
+  const res = await apiFetch(`/api/shares/incoming/${encodeURIComponent(id)}`, {
+    headers: activityHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "This trip is no longer shared with you.");
+  return data.share;
+}
+
 export async function askSafar({ messages, profile, onDelta }) {
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
       messages: messages.slice(-16),
-      system: SYSTEM_PROMPT + profileLine(profile),
+      system: ASK_SYSTEM_PROMPT + profileLine(profile),
     });
     onDelta?.(text, text);
     return text;
@@ -271,7 +339,7 @@ export async function createPlan(payload) {
       json: true,
     });
     try {
-      return parsePlanJson(text);
+      return applyStyleBudget(parsePlanJson(text), payload);
     } catch {
       throw new Error("Safar drafted a plan but it could not be formatted. Please try again.");
     }
@@ -284,7 +352,7 @@ export async function createPlan(payload) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Safar could not build this plan.");
-  return data.plan;
+  return applyStyleBudget(data.plan, payload);
 }
 
 function asDay(parsed, dayNumber) {

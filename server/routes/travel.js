@@ -5,12 +5,14 @@ import { planSnapshot } from "../lib/snapshot.js";
 import {
   DAY_JSON_INSTRUCTIONS,
   PLAN_JSON_INSTRUCTIONS,
+  ASK_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
   WEEKEND_JSON_INSTRUCTIONS,
   generateTravelReply,
   parsePlanJson,
   streamTravelReply,
 } from "../lib/gemini.js";
+import { applyStyleBudget, styleGuide } from "../../client/src/lib/styleBudget.js";
 
 const router = Router();
 
@@ -33,14 +35,14 @@ const STAY_LABEL = {
   exceptional: "Exceptional — a suite, villa, or leading resort",
 };
 
-function stayBrief(stays) {
+function stayBrief(stays, style) {
   const chosen = (Array.isArray(stays) ? stays : String(stays || "").split(","))
     .map((id) => STAY_LABEL[String(id || "").trim()])
     .filter(Boolean);
   if (!chosen.length) {
-    return "The traveler has not chosen a stay standard. Set hotels to []. Estimate budget.stay for a comfortable private room.";
+    return "The traveler has not chosen a stay standard. Set hotels to []. Price budget.stay for the travel style above. Do not assume a luxury hotel.";
   }
-  return `Stay standards the traveler chose: ${chosen.join("; ")}. Estimate budget.stay for these. Set hotels to [].`;
+  return `Stay standards the traveler chose: ${chosen.join("; ")}. Price budget.stay for these. Keep food, local travel, and activities at the ${style || "Balanced"} style. Set hotels to [].`;
 }
 
 router.post("/chat", async (req, res) => {
@@ -49,10 +51,10 @@ router.post("/chat", async (req, res) => {
   const stream = req.body?.stream !== false;
 
   if (!messages.length || !messages.some((m) => m.role === "user")) {
-    return res.status(400).json({ error: "Please ask Safar something about your trip." });
+    return res.status(400).json({ error: "Type a message first." });
   }
 
-  const system = SYSTEM_PROMPT + profileLine(profile);
+  const system = ASK_SYSTEM_PROMPT + profileLine(profile);
 
   try {
     if (stream) {
@@ -122,8 +124,8 @@ router.post("/plan", async (req, res) => {
     endDate && `Trip ends: ${endDate}`,
     days && `Duration: ${days} days`,
     travelers && `Travelers: ${travelers}`,
-    budget && `Budget: ${budget}`,
-    style && `Travel style: ${style}`,
+    budget && `Budget ceiling: ${budget}. Stay inside it. If that ceiling is above the style, do not spend up to it.`,
+    styleGuide(style),
     interests && `Interests: ${interests}`,
     notes && `Extra notes: ${notes}`,
     `Currency: ${profile?.currency || "INR"}`,
@@ -134,7 +136,7 @@ router.post("/plan", async (req, res) => {
     Array.isArray(modes) && modes.includes("flight")
       ? "Fill flightPicks with 1, 2, or 3 one-way flights, lowest fare first. Never more than 3."
       : "Set flightPicks to [].",
-    stayBrief(stays),
+    stayBrief(stays, style),
   ]
     .filter(Boolean)
     .join("\n");
@@ -145,7 +147,7 @@ router.post("/plan", async (req, res) => {
       system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(profile)}`,
       json: true,
     });
-    const plan = parsePlanJson(text);
+    const plan = applyStyleBudget(parsePlanJson(text), req.body || {});
     const snapshot = planSnapshot(plan);
     logActivity(req, {
       action: "plan",

@@ -1,3 +1,5 @@
+export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.safartravel.app";
+
 export function placeLinks(place, city = "") {
   const where = `${place?.name || ""} ${city || place?.city || ""}`.trim();
   const q = encodeURIComponent(where);

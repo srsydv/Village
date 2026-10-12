@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { suggestFlights } from "../lib/api.js";
 import { formatTripSpan } from "../lib/dates.js";
 import { buildJourney } from "../lib/transport.js";
+import { budgetLabel, styleBudgetCaption } from "../lib/styleBudget.js";
 import { dayNumber, dayVisitItems } from "../lib/tripChecks.js";
 import { CheckRow } from "./CheckRow.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
@@ -81,11 +82,14 @@ export function ItineraryView({
       {budgetEntries.length > 0 && (
         <section className="card mt-6 rounded-[1.4rem] p-4">
           <p className="kicker">Expenses</p>
-          <p className="mt-1 text-[0.7rem] text-[var(--muted)]">Estimates. Live prices open on Booking or airline sites.</p>
+          <p className="mt-1 text-[0.7rem] leading-relaxed text-[var(--muted)]">
+            {plan.style ? `${styleBudgetCaption(plan.style)}. ` : ""}
+            Estimates. Live prices open on Booking or airline sites.
+          </p>
           <div className="mt-3 space-y-2">
             {budgetEntries.map(([key, value]) => (
               <div key={key} className="flex items-center justify-between gap-3 text-sm">
-                <span className="capitalize text-[var(--muted)]">{key}</span>
+                <span className="text-[var(--muted)]">{budgetLabel(key)}</span>
                 <span className="text-right text-[#f0e8da]">{value}</span>
               </div>
             ))}

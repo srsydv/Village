@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import { classifyLookup, emailQuery, normalizePhone, normalizeUsername } from "./identity.js";
 import { getDb } from "./mongo.js";
 
 let indexed = false;
@@ -38,6 +39,8 @@ export async function usersCol() {
     indexed = true;
     await col.createIndex({ googleId: 1 }, { unique: true }).catch(() => {});
     await col.createIndex({ email: 1 }).catch(() => {});
+    await col.createIndex({ username: 1 }, { unique: true, sparse: true }).catch(() => {});
+    await col.createIndex({ phone: 1 }, { unique: true, sparse: true }).catch(() => {});
   }
   return col;
 }
@@ -50,6 +53,8 @@ export function publicUser(doc) {
     name: doc.name || "",
     picture: doc.picture || "",
     homeCity: doc.homeCity || "",
+    username: doc.username || "",
+    phone: doc.phone || "",
     currency: doc.currency || "INR",
     nationality: doc.nationality || "India",
     chats: Array.isArray(doc.chats) ? doc.chats : [],
@@ -146,6 +151,47 @@ export async function userStats() {
   return { users: row?.users || 0, savedTrips: row?.savedTrips || 0, chats: row?.chats || 0 };
 }
 
+function takenError(field) {
+  const err = new Error(
+    field === "phone" ? "That phone number is already on Safar." : "That username is taken.",
+  );
+  err.status = 409;
+  return err;
+}
+
+async function claimHandle(uid, field, value) {
+  if (!value) return;
+  const col = await usersCol();
+  const doc = await col.findOne({ [field]: value });
+  if (doc && String(doc._id) !== String(uid)) throw takenError(field);
+}
+
+export async function usernameTaken(username, exceptId) {
+  const col = await usersCol();
+  const doc = await col.findOne({ username });
+  if (!doc) return false;
+  return String(doc._id) !== String(exceptId || "");
+}
+
+export async function findUserByLookup(query) {
+  const kind = classifyLookup(query);
+  if (!kind.value) return null;
+  const col = await usersCol();
+  if (kind.kind === "email") return col.findOne(emailQuery(kind.value));
+  if (kind.kind === "phone") return col.findOne({ phone: kind.value });
+  return col.findOne({ username: kind.value });
+}
+
+export function shareCard(doc) {
+  if (!doc) return null;
+  return {
+    id: String(doc._id),
+    name: doc.name || "",
+    picture: doc.picture || "",
+    username: doc.username || "",
+  };
+}
+
 export async function saveUserState(uid, patch) {
   if (!ObjectId.isValid(uid)) return null;
   const $set = { updatedAt: new Date() };
@@ -154,15 +200,49 @@ export async function saveUserState(uid, patch) {
   if (patch.currency != null) $set.currency = clip(patch.currency, 8);
   if (patch.nationality != null) $set.nationality = clip(patch.nationality, 80);
   if (patch.picture != null) $set.picture = clip(patch.picture, 400);
+  if (patch.username != null) {
+    const username = normalizeUsername(patch.username);
+    if (!username) {
+      const err = new Error("Choose a username.");
+      err.status = 400;
+      throw err;
+    }
+    await claimHandle(uid, "username", username);
+    $set.username = username;
+  }
+  if (patch.phone != null) {
+    const phone = normalizePhone(patch.phone);
+    if (!phone) {
+      const err = new Error("Add a phone number so friends can find you.");
+      err.status = 400;
+      throw err;
+    }
+    await claimHandle(uid, "phone", phone);
+    $set.phone = phone;
+  }
   if (patch.chats) $set.chats = capChats(patch.chats);
   if (patch.trips) $set.trips = capTrips(patch.trips);
   const col = await usersCol();
-  const doc = await col.findOneAndUpdate({ _id: new ObjectId(uid) }, { $set }, { returnDocument: "after" });
-  return doc?.value || doc;
+  try {
+    const doc = await col.findOneAndUpdate({ _id: new ObjectId(uid) }, { $set }, { returnDocument: "after" });
+    return doc?.value || doc;
+  } catch (err) {
+    if (err?.code === 11000) {
+      throw takenError(String(err.message || "").includes("phone") ? "phone" : "username");
+    }
+    throw err;
+  }
 }
 
 export async function deleteUser(uid) {
   if (!ObjectId.isValid(uid)) return false;
+  const db = await getDb();
+  if (db) {
+    await db
+      .collection("tripShares")
+      .deleteMany({ $or: [{ ownerId: String(uid) }, { recipientId: String(uid) }] })
+      .catch(() => {});
+  }
   const col = await usersCol();
   const result = await col.deleteOne({ _id: new ObjectId(uid) });
   return result.deletedCount > 0;

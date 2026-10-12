@@ -78,6 +78,7 @@ export function PlanScreen() {
       daysCount,
       duration: formatTripSpan(form.startDate, daysCount) || `${daysCount} days`,
       travelers: travelerLine(form.adults, form.kids),
+      style: nextPlan?.style || form.style || "Balanced",
     };
   };
 
@@ -114,11 +115,24 @@ export function PlanScreen() {
           setForm((f) => ({ ...f, destination: place.label }));
         }
       }
+      let originHit = originPlace;
+      if ((!originHit?.lat || !originHit?.lon) && form.origin.trim()) {
+        const originHits = await suggestPlaces(form.origin).catch(() => []);
+        if (originHits[0]) {
+          originHit = originHits[0];
+          setOriginPlace(originHit);
+        }
+      }
       const destination = place?.label || form.destination.trim();
       setPhase("Writing your days and comparing fares…");
       const payload = {
         ...form,
         origin: form.origin.trim(),
+        originLat: originHit?.lat ?? null,
+        originLon: originHit?.lon ?? null,
+        originCountry: originHit?.country || "",
+        destLat: place?.lat ?? null,
+        destLon: place?.lon ?? null,
         modes: form.modes,
         stays: form.stays,
         destination,
@@ -159,6 +173,7 @@ export function PlanScreen() {
         kids: Number(form.kids) || 0,
         modes: form.modes,
         stays: form.stays,
+        style: form.style,
         originCountry: originPlace?.country || "",
       },
     };

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { fetchIncomingShares } from "../lib/api.js";
 import { hasDatedTrip, withDayNote } from "../lib/calendar.js";
 import { daysUntil, formatTripSpan } from "../lib/dates.js";
 import { useTravel } from "../lib/TravelContext.jsx";
@@ -8,6 +9,7 @@ import { TripCalendar } from "./TripCalendar.jsx";
 export function TripsScreen() {
   const { trips, profile, addTrip } = useTravel();
   const [params, setParams] = useSearchParams();
+  const [shared, setShared] = useState([]);
   const dated = hasDatedTrip(trips);
   const focusDay = params.get("day") || "";
   const requested = params.get("view");
@@ -28,6 +30,20 @@ export function TripsScreen() {
     setParams(query, { replace: true });
   };
 
+  useEffect(() => {
+    let cancel = false;
+    fetchIncomingShares()
+      .then((rows) => {
+        if (!cancel) setShared(rows);
+      })
+      .catch(() => {
+        if (!cancel) setShared([]);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
   return (
     <div className="safe-top safe-bottom px-5">
       <p className="kicker">Library</p>
@@ -44,6 +60,8 @@ export function TripsScreen() {
           List
         </ViewTab>
       </div>
+
+      <SharedWithYou shares={shared} />
 
       {view === "calendar" ? (
         <TripCalendar
@@ -62,6 +80,36 @@ export function TripsScreen() {
         <TripList trips={trips} />
       )}
     </div>
+  );
+}
+
+function SharedWithYou({ shares }) {
+  if (!shares.length) return null;
+  return (
+    <section className="mt-6">
+      <p className="kicker">Shared with you</p>
+      <div className="mt-3 space-y-3">
+        {shares.map((share) => {
+          const trip = share.trip;
+          const by = share.sharedBy || {};
+          const title = trip?.plan?.title || trip?.plan?.destination || "Trip no longer available";
+          return (
+            <Link key={share.id} to={`/trips/shared/${share.id}`} className="card block rounded-[1.4rem] px-4 py-4">
+              <p className="text-xs text-[var(--gold)]">
+                Shared by {by.name || "someone"}
+                {by.username ? ` · @${by.username}` : ""}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold leading-tight">{title}</h2>
+              {trip?.plan && (
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  {formatTripSpan(trip.plan.startDate, trip.plan.daysCount) || trip.plan.duration || trip.plan.destination || ""}
+                </p>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

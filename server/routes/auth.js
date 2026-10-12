@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { googleAuthConfig, isAdminEmail, requireAuth, signSession, verifyGoogleCredential } from "../lib/auth.js";
-import { deleteUser, getUser, publicUser, saveUserState, upsertGoogleUser } from "../lib/users.js";
+import { normalizeUsername } from "../lib/identity.js";
+import { deleteUser, getUser, publicUser, saveUserState, upsertGoogleUser, usernameTaken } from "../lib/users.js";
 
 const router = Router();
 
@@ -32,6 +33,22 @@ router.post("/google", async (req, res) => {
   return res.json({ token: signSession(saved || user), user: next });
 });
 
+router.get("/username", requireAuth, async (req, res) => {
+  let username = "";
+  try {
+    username = normalizeUsername(req.query.q);
+  } catch (err) {
+    return res.json({ available: false, error: err.message });
+  }
+  if (!username) return res.json({ available: false, error: "Choose a username." });
+  const taken = await usernameTaken(username, req.user.uid);
+  return res.json({
+    username,
+    available: !taken,
+    error: taken ? "That username is taken." : "",
+  });
+});
+
 router.get("/me", requireAuth, async (req, res) => {
   const user = await getUser(req.user.uid);
   if (!user) return res.status(401).json({ error: "Account not found. Sign in again." });
@@ -44,6 +61,8 @@ router.put("/me", requireAuth, async (req, res) => {
     homeCity: req.body?.homeCity,
     currency: req.body?.currency,
     nationality: req.body?.nationality,
+    username: req.body?.username,
+    phone: req.body?.phone,
     chats: req.body?.chats,
     trips: req.body?.trips,
   });

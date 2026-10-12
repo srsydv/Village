@@ -1,5 +1,6 @@
 import { formatTripSpan } from "./dates.js";
-import { pickCount } from "./links.js";
+import { budgetLabel } from "./styleBudget.js";
+import { pickCount, PLAY_STORE_URL } from "./links.js";
 
 export function tripToText(trip) {
   const plan = trip?.plan || {};
@@ -22,7 +23,7 @@ export function tripToText(trip) {
   if (budget.length) {
     lines.push("");
     lines.push("Expenses (estimates — live prices on Booking / airline sites)");
-    for (const [key, value] of budget) lines.push(`• ${key}: ${value}`);
+    for (const [key, value] of budget) lines.push(`• ${budgetLabel(key)}: ${value}`);
   }
 
   if (plan.visa) {
@@ -57,19 +58,35 @@ export function tripToText(trip) {
 
   lines.push("");
   lines.push("Drafted with Safar. Hotel and food prices are estimates.");
+  lines.push(`Get Safar: ${PLAY_STORE_URL}`);
   return lines.join("\n");
 }
 
-export async function shareTrip(trip) {
-  const text = tripToText(trip);
-  const title = trip?.plan?.title || trip?.plan?.destination || "Trip";
+export async function shareText({ title, text }) {
   if (typeof navigator !== "undefined" && navigator.share) {
-    await navigator.share({ title, text });
-    return "shared";
+    try {
+      await navigator.share({ title, text });
+      return "shared";
+    } catch (err) {
+      if (err?.name === "AbortError") return "cancelled";
+      throw err;
+    }
   }
   if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
     return "copied";
   }
   throw new Error("Sharing is not available on this device.");
+}
+
+export async function shareTrip(trip) {
+  const text = tripToText(trip);
+  const title = trip?.plan?.title || trip?.plan?.destination || "Trip";
+  return shareText({ title, text });
+}
+
+export async function shareApp({ username } = {}) {
+  const handle = username ? ` Find me as @${username}.` : "";
+  const text = `Plan trips with Safar — itineraries, stays, and a weekend idea from home.${handle}\n${PLAY_STORE_URL}`;
+  return shareText({ title: "Safar", text });
 }
