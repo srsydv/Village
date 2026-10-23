@@ -8,6 +8,7 @@ import travelRouter from "./routes/travel.js";
 import placesRouter from "./routes/places.js";
 import activityRouter from "./routes/activity.js";
 import authRouter from "./routes/auth.js";
+import sharesRouter from "./routes/shares.js";
 import adminRouter from "./routes/admin.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -78,6 +79,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/shares", sharesRouter);
 app.use("/api/admin", adminRouter);
 app.use(activityRouter);
 app.use("/api/travel", travelRouter);

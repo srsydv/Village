@@ -3,12 +3,16 @@ import { logActivity, lastUserText } from "../lib/activity.js";
 import { logSearch } from "../lib/searches.js";
 import { planSnapshot } from "../lib/snapshot.js";
 import {
+  DAY_JSON_INSTRUCTIONS,
   PLAN_JSON_INSTRUCTIONS,
+  ASK_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
+  WEEKEND_JSON_INSTRUCTIONS,
   generateTravelReply,
   parsePlanJson,
   streamTravelReply,
 } from "../lib/gemini.js";
+import { applyStyleBudget, styleGuide } from "../../client/src/lib/styleBudget.js";
 
 const router = Router();
 
@@ -22,16 +26,35 @@ function profileLine(profile) {
   return bits.length ? `\n\nTraveler profile:\n${bits.join("\n")}` : "";
 }
 
+const STAY_LABEL = {
+  dorm: "Dorm — a bed in a shared room",
+  simple: "Simple private — your own basic room",
+  comfortable: "Comfortable — a solid, quiet hotel",
+  polished: "Polished — better rooms and a stronger address",
+  refined: "Refined — boutique or full service",
+  exceptional: "Exceptional — a suite, villa, or leading resort",
+};
+
+function stayBrief(stays, style) {
+  const chosen = (Array.isArray(stays) ? stays : String(stays || "").split(","))
+    .map((id) => STAY_LABEL[String(id || "").trim()])
+    .filter(Boolean);
+  if (!chosen.length) {
+    return "The traveler has not chosen a stay standard. Set hotels to []. Price budget.stay for the travel style above. Do not assume a luxury hotel.";
+  }
+  return `Stay standards the traveler chose: ${chosen.join("; ")}. Price budget.stay for these. Keep food, local travel, and activities at the ${style || "Balanced"} style. Set hotels to [].`;
+}
+
 router.post("/chat", async (req, res) => {
   const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-16) : [];
   const profile = req.body?.profile;
   const stream = req.body?.stream !== false;
 
   if (!messages.length || !messages.some((m) => m.role === "user")) {
-    return res.status(400).json({ error: "Please ask Safar something about your trip." });
+    return res.status(400).json({ error: "Type a message first." });
   }
 
-  const system = SYSTEM_PROMPT + profileLine(profile);
+  const system = ASK_SYSTEM_PROMPT + profileLine(profile);
 
   try {
     if (stream) {
@@ -83,6 +106,9 @@ router.post("/plan", async (req, res) => {
     style,
     interests,
     notes,
+    origin,
+    modes,
+    stays,
     profile,
   } = req.body || {};
 
@@ -98,12 +124,19 @@ router.post("/plan", async (req, res) => {
     endDate && `Trip ends: ${endDate}`,
     days && `Duration: ${days} days`,
     travelers && `Travelers: ${travelers}`,
-    budget && `Budget: ${budget}`,
-    style && `Travel style: ${style}`,
+    budget && `Budget ceiling: ${budget}. Stay inside it. If that ceiling is above the style, do not spend up to it.`,
+    styleGuide(style),
     interests && `Interests: ${interests}`,
     notes && `Extra notes: ${notes}`,
     `Currency: ${profile?.currency || "INR"}`,
-    profile?.homeCity && `Departing from: ${profile.homeCity}`,
+    (origin || profile?.homeCity) && `Departing from: ${origin || profile.homeCity}`,
+    Array.isArray(modes) && modes.length
+      ? `Compare these ways to get there, one way, per adult: ${modes.filter(Boolean).join(", ")}. Fill rides for each of these modes only.`
+      : "The traveler did not ask for a transport comparison. Set rides to [].",
+    Array.isArray(modes) && modes.includes("flight")
+      ? "Fill flightPicks with 1, 2, or 3 one-way flights, lowest fare first. Never more than 3."
+      : "Set flightPicks to [].",
+    stayBrief(stays, style),
   ]
     .filter(Boolean)
     .join("\n");
@@ -114,7 +147,7 @@ router.post("/plan", async (req, res) => {
       system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(profile)}`,
       json: true,
     });
-    const plan = parsePlanJson(text);
+    const plan = applyStyleBudget(parsePlanJson(text), req.body || {});
     const snapshot = planSnapshot(plan);
     logActivity(req, {
       action: "plan",
@@ -172,6 +205,180 @@ router.post("/plan", async (req, res) => {
           ? "Safar drafted a plan but it could not be formatted. Please try again."
           : err.message || "Safar could not build this plan.",
     });
+  }
+});
+
+function asDay(parsed, dayNumber) {
+  const raw =
+    parsed?.morning || parsed?.afternoon || parsed?.evening || parsed?.title
+      ? parsed
+      : parsed?.day && typeof parsed.day === "object"
+        ? parsed.day
+        : Array.isArray(parsed?.days)
+          ? parsed.days[0]
+          : null;
+  if (!raw || typeof raw !== "object") throw new SyntaxError("Invalid day JSON");
+  return {
+    day: dayNumber,
+    title: String(raw.title || `Day ${dayNumber}`).trim(),
+    morning: String(raw.morning || "").trim(),
+    afternoon: String(raw.afternoon || "").trim(),
+    evening: String(raw.evening || "").trim(),
+    food: String(raw.food || "").trim(),
+    cost: String(raw.cost || "").trim(),
+  };
+}
+
+function otherDayLines(days) {
+  if (!Array.isArray(days)) return "";
+  return days
+    .map((day) => {
+      const bits = [day?.title, day?.morning, day?.afternoon, day?.evening].filter(Boolean).join(" — ");
+      return bits ? `Day ${day.day || "?"}: ${bits}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+router.post("/day", async (req, res) => {
+  const { destination, country, dayNumber, dayDate, comment, otherDays, profile } = req.body || {};
+  const place = String(destination || "").trim();
+  const number = Number(dayNumber);
+  if (!place) return res.status(400).json({ error: "Tell Safar which trip this day belongs to." });
+  if (!Number.isFinite(number) || number < 1) {
+    return res.status(400).json({ error: "Tell Safar which day to rewrite." });
+  }
+
+  const note = String(comment || "").trim();
+  const brief = [
+    `Rewrite only day ${number} of a trip to ${place}.`,
+    country && `Country: ${country}`,
+    dayDate && `This day is: ${dayDate}`,
+    `Currency: ${profile?.currency || "INR"}`,
+    profile?.homeCity && `Departing from: ${profile.homeCity}`,
+    profile?.nationality && `Passport: ${profile.nationality}`,
+    otherDayLines(otherDays) && `Other days already planned. Do not repeat these places:\n${otherDayLines(otherDays)}`,
+    note
+      ? `The traveler wants this day to include: ${note}. Follow that text.`
+      : "The traveler left no extra note. Write a strong day yourself that fits the trip and does not repeat the other days.",
+    `Set "day" to ${number}.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const { text, model } = await generateTravelReply({
+      messages: [{ role: "user", content: brief }],
+      system: `${SYSTEM_PROMPT}\n\n${DAY_JSON_INSTRUCTIONS}${profileLine(profile)}`,
+      json: true,
+    });
+    const day = asDay(parsePlanJson(text), number);
+    logActivity(req, {
+      action: "plan",
+      query: `${place} · day ${number}${note ? ` · ${note}` : ""}`,
+      ok: true,
+      model,
+    });
+    return res.json({ day, model });
+  } catch (err) {
+    logActivity(req, {
+      action: "plan",
+      query: `${place} · day ${number}`,
+      ok: false,
+      error: err.message,
+    });
+    const status = err.status || (err instanceof SyntaxError ? 502 : 500);
+    return res.status(status).json({
+      error:
+        err instanceof SyntaxError
+          ? "Safar drafted this day but it could not be formatted. The old day is unchanged."
+          : err.message || "Safar could not rewrite this day. The old day is unchanged.",
+    });
+  }
+});
+
+router.post("/weekend", async (req, res) => {
+  const profile = req.body?.profile || {};
+  const homeCity = String(profile.homeCity || req.body?.homeCity || "").trim();
+  if (!homeCity) return res.status(400).json({ error: "Add a home city to see a weekend idea." });
+
+  const brief = [
+    `Suggest one 2-day weekend trip from ${homeCity}.`,
+    `Currency: ${profile.currency || "INR"}`,
+    profile.nationality && `Passport: ${profile.nationality}`,
+    "Choose a place someone could actually reach for a weekend. Do not choose the home city.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const { text, model } = await generateTravelReply({
+      messages: [{ role: "user", content: brief }],
+      system: `${SYSTEM_PROMPT}\n\n${WEEKEND_JSON_INSTRUCTIONS}${profileLine(profile)}`,
+      json: true,
+    });
+    const parsed = parsePlanJson(text);
+    const destination = String(parsed?.destination || "").trim();
+    if (!destination) throw new SyntaxError("Invalid weekend JSON");
+    const idea = {
+      destination,
+      country: String(parsed.country || "").trim(),
+      title: String(parsed.title || destination).trim(),
+      summary: String(parsed.summary || "").trim(),
+    };
+    logActivity(req, { action: "plan", query: `weekend from ${homeCity}`, ok: true, model });
+    return res.json({ idea, model });
+  } catch (err) {
+    logActivity(req, {
+      action: "plan",
+      query: `weekend from ${homeCity}`,
+      ok: false,
+      error: err.message,
+    });
+    const status = err.status || (err instanceof SyntaxError ? 502 : 500);
+    return res.status(status).json({
+      error: err instanceof SyntaxError ? "Safar could not shape a weekend idea. Try again." : err.message || "Safar could not find a weekend.",
+    });
+  }
+});
+
+router.post("/flights", async (req, res) => {
+  const from = String(req.body?.from || "").trim();
+  const to = String(req.body?.to || "").trim();
+  const date = String(req.body?.date || "").trim();
+  const adults = Math.min(9, Math.max(1, Number(req.body?.adults) || 1));
+  const kids = Math.max(0, Number(req.body?.kids) || 0);
+  const profile = req.body?.profile;
+  if (!from || !to) return res.status(400).json({ error: "A flight suggestion needs a departure city and a destination." });
+
+  const brief = [
+    `Choose one-way flights from ${from} to ${to}.`,
+    date && `Travel date: ${date}`,
+    `Adults: ${adults}`,
+    kids ? `Children: ${kids}` : "",
+    `Currency: ${profile?.currency || "INR"}`,
+    "Give 1, 2, or 3 flights. Never more than 3. Put the lower fare first.",
+    "Each why sentence says the flight is a good choice at that cost and names the stops.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const instructions = `Return ONLY valid JSON. No markdown fences. No commentary.
+Schema: { "flightPicks": [{ "airline": "string", "via": "string", "stops": 1, "duration": "string", "typicalFare": "string", "fareLow": 0, "why": "string" }] }
+Return 1, 2, or 3 one-way flights. Never more than 3. Order the lower fare first. stops is 0, 1, or 2. via is the connection city, or "" when nonstop. fareLow is the total for every adult as a number with no symbol. typicalFare is that same total with a currency symbol. why is one sentence that says this flight is a good choice and includes the fare and the stops. Name a real airline for the route. Do not invent booking URLs.`;
+
+  try {
+    const { text } = await generateTravelReply({
+      messages: [{ role: "user", content: brief }],
+      system: `${SYSTEM_PROMPT}\n\n${instructions}${profileLine(profile)}`,
+      json: true,
+    });
+    const parsed = parsePlanJson(text);
+    const flightPicks = (Array.isArray(parsed?.flightPicks) ? parsed.flightPicks : []).slice(0, 3);
+    return res.json({ flightPicks });
+  } catch (err) {
+    const status = err.status || (err instanceof SyntaxError ? 502 : 500);
+    return res.status(status).json({ error: err.message || "Could not choose flights for this date." });
   }
 });
 

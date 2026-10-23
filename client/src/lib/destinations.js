@@ -145,10 +145,8 @@ export const CATEGORIES = [
 ];
 
 export const QUICK_ASKS = [
-  { id: "dest", label: "Where should I go?", prompt: "I have 5–7 days and want a destination recommendation with why, best season, budget, and hotel style." },
-  { id: "money", label: "Trip budget", prompt: "Break down a realistic trip budget: flights, hotel, food, local travel, activities, and a buffer." },
-  { id: "hotel", label: "Find hotels", prompt: "Suggest 3 hotels — value, balanced, and luxury — with area, nightly price, and who they suit." },
-  { id: "plan", label: "Day-by-day plan", prompt: "Create a detailed day-by-day itinerary with morning, afternoon, evening, and estimated daily spend." },
-  { id: "visa", label: "Visa & documents", prompt: "For my passport and this trip, what visa do I apply for myself, which official site, documents, timeline, and fee? Do not offer to file it." },
-  { id: "pack", label: "What to pack", prompt: "Make a packing list for this trip by weather, dress code, and airline cabin rules." },
+  { id: "explain", label: "Explain something", prompt: "Explain how black holes work, in plain language." },
+  { id: "write", label: "Help me write", prompt: "Help me write a short, warm note to a friend I have not seen in a year." },
+  { id: "ideas", label: "Give me ideas", prompt: "Give me five dinner ideas I can cook in under 30 minutes." },
+  { id: "trip", label: "A trip idea", prompt: "I have 5–7 days. Suggest a destination with why, best season, and a rough budget." },
 ];

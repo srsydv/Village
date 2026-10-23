@@ -11,7 +11,7 @@ import { PrivacyScreen } from "./components/PrivacyScreen.jsx";
 import { AdminScreen } from "./components/AdminScreen.jsx";
 import { AdminUserScreen } from "./components/AdminUserScreen.jsx";
 import { ServiceWorkerRegister } from "./components/ServiceWorkerRegister.jsx";
-import { TripDetail } from "./components/TripDetail.jsx";
+import { TripDetail, SharedTripDetail } from "./components/TripDetail.jsx";
 import { TripsScreen } from "./components/TripsScreen.jsx";
 import { useTravel } from "./lib/TravelContext.jsx";
 
@@ -44,6 +44,7 @@ export default function App() {
             <Route path="/plan" element={<PlanScreen />} />
             <Route path="/choose" element={<ChooseScreen />} />
             <Route path="/trips" element={<TripsScreen />} />
+            <Route path="/trips/shared/:shareId" element={<SharedTripDetail />} />
             <Route path="/trips/:id" element={<TripDetail />} />
             <Route path="/ask" element={<ChatScreen />} />
             <Route path="/profile" element={<PrivacyScreen />} />

@@ -18,7 +18,7 @@ import {
   setOnboarded as persistOnboarded,
 } from "./storage.js";
 
-const emptyProfile = { name: "", homeCity: "", currency: "INR", nationality: "India" };
+const emptyProfile = { name: "", homeCity: "", username: "", phone: "", currency: "INR", nationality: "India" };
 const TravelContext = createContext(null);
 
 function signedInNow() {
@@ -26,7 +26,26 @@ function signedInNow() {
 }
 
 function profileComplete(p) {
-  return Boolean(String(p?.name || "").trim() && String(p?.homeCity || "").trim());
+  return Boolean(
+    String(p?.name || "").trim() &&
+      String(p?.homeCity || "").trim() &&
+      String(p?.username || "").trim() &&
+      String(p?.phone || "").trim(),
+  );
+}
+
+function accountPayload(profile, chats, trips) {
+  const payload = {
+    name: profile.name,
+    homeCity: profile.homeCity,
+    currency: profile.currency,
+    nationality: profile.nationality,
+    chats,
+    trips,
+  };
+  if (profile.username) payload.username = profile.username;
+  if (profile.phone) payload.phone = profile.phone;
+  return payload;
 }
 
 export function TravelProvider({ children }) {
@@ -45,6 +64,8 @@ export function TravelProvider({ children }) {
     const nextProfile = {
       name: user.name || "",
       homeCity: user.homeCity || "",
+      username: user.username || "",
+      phone: user.phone || "",
       currency: user.currency || "INR",
       nationality: user.nationality || "India",
     };
@@ -70,14 +91,7 @@ export function TravelProvider({ children }) {
     clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(() => {
       const { profile: nextProfile, chats: nextChats, trips: nextTrips } = stateRef.current;
-      syncAccount({
-        name: nextProfile.name,
-        homeCity: nextProfile.homeCity,
-        currency: nextProfile.currency,
-        nationality: nextProfile.nationality,
-        chats: nextChats,
-        trips: nextTrips,
-      }).catch(() => {});
+      syncAccount(accountPayload(nextProfile, nextChats, nextTrips)).catch(() => {});
     }, 700);
   }, []);
 
@@ -133,22 +147,29 @@ export function TravelProvider({ children }) {
         setProfile(merged);
         queueSync();
       },
-      completeOnboarding: (next) => {
+      completeOnboarding: async (next) => {
         if (!getAuthToken()) return;
         const merged = { ...profile, ...next };
-        persistProfile(merged);
-        persistOnboarded();
-        setProfile(merged);
-        setReady(profileComplete(merged));
-        stateRef.current = { ...stateRef.current, profile: merged };
-        syncAccount({
+        const user = await syncAccount({
           name: merged.name,
           homeCity: merged.homeCity,
           currency: merged.currency,
           nationality: merged.nationality,
+          username: merged.username,
+          phone: merged.phone,
           chats: stateRef.current.chats,
           trips: stateRef.current.trips,
-        }).catch(() => {});
+        });
+        const saved = {
+          ...merged,
+          username: user?.username || merged.username,
+          phone: user?.phone || merged.phone,
+        };
+        persistProfile(saved);
+        persistOnboarded();
+        setProfile(saved);
+        setReady(profileComplete(saved));
+        stateRef.current = { ...stateRef.current, profile: saved };
       },
       completeGoogleSignIn: (data) => {
         applyUser(data.user, data.token);

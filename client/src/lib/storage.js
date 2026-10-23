@@ -52,6 +52,8 @@ export function getProfile() {
   return read(KEYS.profile, {
     name: "",
     homeCity: "",
+    username: "",
+    phone: "",
     currency: "INR",
     nationality: "India",
   });
@@ -161,7 +163,7 @@ export function clearSession() {
 export function resetLocalUser() {
   clearSession();
   clearOnboarded();
-  write(KEYS.profile, { name: "", homeCity: "", currency: "INR", nationality: "India" });
+  write(KEYS.profile, { name: "", homeCity: "", username: "", phone: "", currency: "INR", nationality: "India" });
   write(KEYS.chats, []);
   write(KEYS.trips, []);
 }

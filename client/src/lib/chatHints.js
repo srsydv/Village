@@ -8,18 +8,18 @@ export function chatPreview(chat) {
   return text.replace(/\s+/g, " ").slice(0, 90);
 }
 
+const TRAVEL_HINT =
+  /\b(trip|travel|travell?ing|vacation|holiday|itinerary|visa|hotel|hostel|flight|airbnb|destination|packing list|day-by-day|weekend getaway)\b/i;
+
 export function planSeedFromChat(messages) {
   const list = Array.isArray(messages) ? messages : [];
-  const blob = list.map((m) => String(m.content || "")).join("\n").toLowerCase();
-  const match = DESTINATIONS.find((d) => blob.includes(d.name.toLowerCase()));
+  const blob = list.map((m) => String(m.content || "")).join("\n");
+  const match = DESTINATIONS.find((d) => blob.toLowerCase().includes(d.name.toLowerCase()));
   const lastUser = [...list].reverse().find((m) => m.role === "user");
   const last = String(lastUser?.content || "").trim();
+  if (!match && !TRAVEL_HINT.test(blob)) return null;
   return {
-    q: match
-      ? `${match.name}, ${match.country}`
-      : last && last.length <= 48 && !last.includes("?")
-        ? last
-        : "",
-    notes: !match && (last.includes("?") || last.length > 48) ? last.slice(0, 400) : "",
+    q: match ? `${match.name}, ${match.country}` : "",
+    notes: match ? "" : last.slice(0, 400),
   };
 }

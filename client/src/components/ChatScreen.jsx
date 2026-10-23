@@ -133,8 +133,8 @@ export function ChatScreen() {
     <div className="flex min-h-dvh flex-col">
       <header className="safe-top flex items-start justify-between px-5 pb-3">
         <div>
-          <p className="kicker">Concierge</p>
-          <h1 className="serif text-[1.9rem] leading-tight font-semibold">Ask a question.</h1>
+          <p className="kicker">Ask</p>
+          <h1 className="serif text-[1.9rem] leading-tight font-semibold">Ask anything.</h1>
         </div>
         <div className="mt-1 flex items-center gap-3">
           {past.length > 0 && (
@@ -153,9 +153,9 @@ export function ChatScreen() {
       <div ref={scroller} className="no-scrollbar flex-1 overflow-y-auto px-5 pb-2">
         {empty && (
           <div className="rise card mt-2 rounded-[1.5rem] p-5">
-            <p className="serif text-2xl">Your private desk is open.</p>
+            <p className="serif text-2xl">Ask anything.</p>
             <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-              Short questions — visas, budgets, packing. For a full itinerary, use Plan.
+              Questions, ideas, writing, how something works, or a trip. Whatever you want.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {chips.map((c) => (
@@ -222,9 +222,7 @@ export function ChatScreen() {
           <textarea
             rows={1}
             className="max-h-28 min-h-11 w-full resize-none bg-transparent py-2.5 text-sm outline-none placeholder:text-[#6d7588]"
-            placeholder={
-              profile.currency === "INR" ? "Hotels in Kyoto under ₹12,000…" : "Hotels in Kyoto under 150 a night…"
-            }
+            placeholder="Ask anything…"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -251,7 +249,7 @@ export function ChatScreen() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="kicker">Desk</p>
-                <h2 className="serif text-2xl font-semibold">Past questions</h2>
+                <h2 className="serif text-2xl font-semibold">Past chats</h2>
               </div>
               <button type="button" className="text-xs text-[var(--gold)]" onClick={startNew}>
                 New chat

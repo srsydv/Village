@@ -5,9 +5,13 @@ import { formatTripSpan, travelerLine, tomorrowIso, tripEndIso } from "../lib/da
 import { emptyPicks, pickCount, togglePick } from "../lib/links.js";
 import { uid } from "../lib/storage.js";
 import { useTravel } from "../lib/TravelContext.jsx";
+import { parseModes } from "../lib/transport.js";
+import { parseStays, toggleStay } from "../lib/stays.js";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
 import { ItineraryView } from "./ItineraryView.jsx";
 import { PlacePicker } from "./PlacePicker.jsx";
+import { StayChoices } from "./StayChoices.jsx";
+import { TransportPicker } from "./Transport.jsx";
 
 const STYLES = ["Balanced", "Luxury", "Budget", "Adventure", "Family", "Honeymoon"];
 
@@ -19,7 +23,11 @@ export function PlanScreen() {
   const incomingDays = params.get("days") || "";
   const incomingStart = params.get("start") || "";
   const incomingNotes = params.get("notes") || "";
+  const incomingOrigin = params.get("origin") || "";
+  const incomingModes = params.get("modes") || "";
+  const incomingStays = params.get("stays") || "";
   const [form, setForm] = useState({
+    origin: incomingOrigin || profile.homeCity || "",
     destination: incoming,
     startDate: incomingStart || tomorrowIso(),
     days: incomingDays || "6",
@@ -29,6 +37,8 @@ export function PlanScreen() {
     style: "Balanced",
     interests: "",
     notes: incomingNotes,
+    modes: parseModes(incomingModes),
+    stays: parseStays(incomingStays),
   });
   const [step, setStep] = useState("form");
   const [busy, setBusy] = useState(false);
@@ -39,19 +49,23 @@ export function PlanScreen() {
   const [picks, setPicks] = useState(emptyPicks);
   const [tab, setTab] = useState("stays");
   const [pickedPlace, setPickedPlace] = useState(null);
+  const [originPlace, setOriginPlace] = useState(null);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   useEffect(() => {
-    if (!incoming && !incomingNotes && !incomingDays && !incomingStart) return;
+    if (!incoming && !incomingNotes && !incomingDays && !incomingStart && !incomingOrigin && !incomingModes && !incomingStays) return;
     setForm((f) => ({
       ...f,
       destination: incoming || f.destination,
       days: incomingDays || f.days,
       startDate: incomingStart || f.startDate,
       notes: incomingNotes || f.notes,
+      origin: incomingOrigin || f.origin,
+      modes: incomingModes ? parseModes(incomingModes) : f.modes,
+      stays: incomingStays ? parseStays(incomingStays) : f.stays,
     }));
-  }, [incoming, incomingDays, incomingNotes, incomingStart]);
+  }, [incoming, incomingDays, incomingNotes, incomingStart, incomingOrigin, incomingModes, incomingStays]);
 
   const packedPlan = (nextPlan, destination, country) => {
     const daysCount = Number(form.days) || 6;
@@ -64,11 +78,31 @@ export function PlanScreen() {
       daysCount,
       duration: formatTripSpan(form.startDate, daysCount) || `${daysCount} days`,
       travelers: travelerLine(form.adults, form.kids),
+      style: nextPlan?.style || form.style || "Balanced",
     };
   };
 
+  const journeyFor = (nextPlan) => ({
+    from: form.origin,
+    to: nextPlan?.destination || form.destination,
+    date: form.startDate,
+    adults: form.adults,
+    kids: form.kids,
+    modes: form.modes,
+    originCountry: originPlace?.country || "",
+    destCountry: nextPlan?.country || pickedPlace?.country || "",
+    rides: nextPlan?.rides,
+    flightPicks: nextPlan?.flightPicks,
+    currency: profile.currency || nextPlan?.currency,
+    profile,
+  });
+
   const generate = async () => {
     setError("");
+    if (form.modes.length && !form.origin.trim()) {
+      setError("Add the city you are leaving from so Safar can compare train, flight, and bus fares.");
+      return;
+    }
     setBusy(true);
     setPhase("Looking up that place…");
     try {
@@ -81,10 +115,26 @@ export function PlanScreen() {
           setForm((f) => ({ ...f, destination: place.label }));
         }
       }
+      let originHit = originPlace;
+      if ((!originHit?.lat || !originHit?.lon) && form.origin.trim()) {
+        const originHits = await suggestPlaces(form.origin).catch(() => []);
+        if (originHits[0]) {
+          originHit = originHits[0];
+          setOriginPlace(originHit);
+        }
+      }
       const destination = place?.label || form.destination.trim();
-      setPhase("Writing your days and finding stays…");
+      setPhase("Writing your days and comparing fares…");
       const payload = {
         ...form,
+        origin: form.origin.trim(),
+        originLat: originHit?.lat ?? null,
+        originLon: originHit?.lon ?? null,
+        originCountry: originHit?.country || "",
+        destLat: place?.lat ?? null,
+        destLon: place?.lon ?? null,
+        modes: form.modes,
+        stays: form.stays,
         destination,
         country: place?.country || "",
         travelers: travelerLine(form.adults, form.kids),
@@ -117,6 +167,15 @@ export function PlanScreen() {
       plan: plan || packedPlan(null, destination, pickedPlace?.country),
       picks: nextPicks,
       weather: catalog?.weather || null,
+      travel: {
+        origin: form.origin.trim(),
+        adults: Number(form.adults) || 1,
+        kids: Number(form.kids) || 0,
+        modes: form.modes,
+        stays: form.stays,
+        style: form.style,
+        originCountry: originPlace?.country || "",
+      },
     };
     addTrip(trip);
     navigate(`/trips/${trip.id}`);
@@ -167,7 +226,14 @@ export function PlanScreen() {
           {plan?.title || plan?.destination || form.destination}
         </h1>
         {error && <p className="mt-3 text-sm text-[var(--rose)]">{error}</p>}
-        <ItineraryView plan={plan} weather={catalog?.weather} />
+        <ItineraryView
+          plan={plan}
+          weather={catalog?.weather}
+          journey={journeyFor(plan)}
+          stays={form.stays}
+          onToggleStay={(id) => setForm((current) => ({ ...current, stays: toggleStay(current.stays, id) }))}
+          onFlightPicks={(flightPicks) => setPlan((current) => (current ? { ...current, flightPicks } : current))}
+        />
         <div className="mt-8 space-y-2">
           {plan && (
             <button
@@ -206,8 +272,9 @@ export function PlanScreen() {
       <p className="kicker">Plan</p>
       <h1 className="serif mt-1 text-[2.1rem] leading-tight font-semibold">Where are you going?</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Pick a real place, dates, and who is travelling. Safar writes the itinerary first. Hotels are optional after
-        that. Plans are AI-generated and can be wrong. Visa steps are for you to file — we do not apply for you.
+        Pick a real place, how you want to travel, and who is going. Safar writes the itinerary and ranks train, flight,
+        and bus with a booking link. Hotels are optional after that. Plans are AI-generated and can be wrong. Visa steps
+        are for you to file — we do not apply for you.
         {profile.nationality ? ` Advice uses a ${profile.nationality} passport.` : ""}
       </p>
 
@@ -218,6 +285,17 @@ export function PlanScreen() {
           generate();
         }}
       >
+        <Field label="Leaving from">
+          <DestinationSuggest
+            value={form.origin}
+            placeholder={profile.homeCity || "Your city"}
+            onChange={(origin) => {
+              setOriginPlace(null);
+              setForm((f) => ({ ...f, origin }));
+            }}
+            onSelect={setOriginPlace}
+          />
+        </Field>
         <Field label="Destination">
           <DestinationSuggest
             value={form.destination}
@@ -252,6 +330,19 @@ export function PlanScreen() {
             onChange={(kids) => setForm((f) => ({ ...f, kids }))}
           />
         </div>
+        <TransportPicker
+          modes={form.modes}
+          onToggle={(id) =>
+            setForm((f) => ({
+              ...f,
+              modes: f.modes.includes(id) ? f.modes.filter((mode) => mode !== id) : [...f.modes, id],
+            }))
+          }
+        />
+        <StayChoices
+          selected={form.stays}
+          onToggle={(id) => setForm((current) => ({ ...current, stays: toggleStay(current.stays, id) }))}
+        />
         <Field label={`Budget (${profile.currency})`}>
           <input
             className="field"
@@ -304,18 +395,36 @@ export function PlanScreen() {
 }
 
 function PlanBusy({ phase }) {
-  const steps = ["Looking up that place…", "Writing your days and finding stays…"];
+  const steps = ["Looking up that place…", "Writing your days and comparing fares…"];
   const active = phase?.includes("Writing") ? 1 : 0;
   return (
-    <div className="fixed inset-0 z-50 mx-auto flex max-w-[430px] items-end bg-black/45 px-4 pb-[calc(6.4rem+env(safe-area-inset-bottom))]">
-      <div className="card w-full rounded-[1.5rem] p-5">
-        <p className="kicker">Working</p>
-        <p className="serif mt-1 text-2xl font-semibold">{phase || "Writing your plan…"}</p>
-        <p className="mt-2 text-sm text-[var(--muted)]">This usually takes 15–30 seconds. Stay on this screen.</p>
-        <ol className="mt-4 space-y-2 text-sm">
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-[430px] items-end bg-black/25 px-4 pb-[calc(6.4rem+env(safe-area-inset-bottom))]">
+      <div className="card busy-card w-full rounded-[1.6rem] p-5">
+        <div className="flex items-center gap-4">
+          <span className="relative grid h-14 w-14 shrink-0 place-items-center" aria-hidden="true">
+            <span className="plan-ring absolute inset-0" />
+            <span className="plan-ring-inner" />
+          </span>
+          <div className="min-w-0">
+            <p className="kicker">Working</p>
+            <p className="serif mt-1 text-[1.65rem] leading-tight font-semibold">{phase || "Writing your plan…"}</p>
+          </div>
+        </div>
+        <div className="plan-track mt-4">
+          <span />
+        </div>
+        <p className="mt-3 text-sm text-[var(--muted)]">This usually takes 15–30 seconds. Stay on this screen.</p>
+        <ol className="mt-4 space-y-2.5 text-sm">
           {steps.map((label, i) => (
-            <li key={label} className={i === active ? "text-[var(--gold-bright)]" : "text-[var(--muted)]"}>
-              {i < active ? "✓" : i === active ? "●" : "○"} {label}
+            <li key={label} className={`flex min-h-6 items-center gap-2.5 ${i === active ? "text-[var(--gold-bright)]" : "text-[var(--muted)]"}`}>
+              {i < active ? (
+                <span className="grid h-4 w-4 place-items-center text-[0.7rem] text-[var(--gold)]">✓</span>
+              ) : i === active ? (
+                <span className="plan-dot" />
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full border border-[var(--line)]" />
+              )}
+              {label}
             </li>
           ))}
         </ol>

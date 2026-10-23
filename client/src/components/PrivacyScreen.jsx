@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteAccount } from "../lib/api.js";
+import { checkUsername, deleteAccount, syncAccount } from "../lib/api.js";
+import { formatPhone } from "../lib/phone.js";
 import { CURRENCY_OPTIONS } from "../lib/profileOptions.js";
+import { shareApp } from "../lib/tripText.js";
 import { useTravel } from "../lib/TravelContext.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
@@ -13,6 +15,59 @@ export function PrivacyScreen() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [username, setUsername] = useState(profile.username || "");
+  const [phone, setPhone] = useState(() => formatPhone(profile.phone));
+  const [usernameNote, setUsernameNote] = useState("");
+  const [handleError, setHandleError] = useState("");
+  const [handleNote, setHandleNote] = useState("");
+  const [inviteNote, setInviteNote] = useState("");
+
+  useEffect(() => {
+    setUsername(profile.username || "");
+  }, [profile.username]);
+
+  useEffect(() => {
+    setPhone(formatPhone(profile.phone));
+  }, [profile.phone]);
+
+  useEffect(() => {
+    const q = username.trim();
+    if (!q || q.replace(/^@+/, "").toLowerCase() === (profile.username || "")) {
+      setUsernameNote("");
+      return undefined;
+    }
+    let cancel = false;
+    const timer = setTimeout(() => {
+      checkUsername(q)
+        .then((result) => {
+          if (!cancel) setUsernameNote(result.error || (result.available ? "Available" : "That username is taken."));
+        })
+        .catch(() => {
+          if (!cancel) setUsernameNote("");
+        });
+    }, 400);
+    return () => {
+      cancel = true;
+      clearTimeout(timer);
+    };
+  }, [profile.username, username]);
+
+  const commitHandle = async () => {
+    const nextUsername = username.trim();
+    const nextPhone = phone.trim();
+    const sameUser = nextUsername.replace(/^@+/, "").toLowerCase() === (profile.username || "");
+    const samePhone = nextPhone.replace(/\D/g, "") === String(profile.phone || "");
+    if (sameUser && samePhone) return;
+    setHandleError("");
+    setHandleNote("");
+    try {
+      const user = await syncAccount({ username: nextUsername, phone: nextPhone });
+      updateProfile({ username: user?.username || "", phone: user?.phone || "" });
+      setHandleNote("Saved");
+    } catch (err) {
+      setHandleError(err.message || "Could not save.");
+    }
+  };
 
   return (
     <div className="safe-top safe-bottom px-5">
@@ -35,6 +90,7 @@ export function PrivacyScreen() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm text-[var(--cream)]">{account?.name || profile.name}</p>
             <p className="truncate text-xs text-[var(--muted)]">{account?.email}</p>
+            {profile.username ? <p className="truncate text-xs text-[var(--gold)]">@{profile.username}</p> : null}
           </div>
         </div>
         <button
@@ -65,7 +121,61 @@ export function PrivacyScreen() {
         )}
       </div>
 
+      <button
+        type="button"
+        className="btn-gold mt-4 w-full rounded-2xl py-3.5 text-sm font-semibold"
+        onClick={async () => {
+          setInviteNote("");
+          try {
+            const result = await shareApp({ username: profile.username });
+            if (result === "cancelled") return;
+            setInviteNote(result === "copied" ? "Invite link copied" : "Invite ready to send");
+          } catch (err) {
+            setInviteNote(err.message || "Could not share the app.");
+          }
+        }}
+      >
+        Invite friends
+      </button>
+      {inviteNote && <p className="mt-2 text-xs text-[var(--gold)]">{inviteNote}</p>}
+      <p className="mt-2 text-xs text-[var(--muted)]">Sends the Play Store link so they can download Safar.</p>
+
       <div className="mt-6 space-y-3">
+        <label className="block">
+          <span className="mb-1.5 block text-[0.7rem] uppercase tracking-wide text-[var(--muted)]">Username</span>
+          <input
+            className="field"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="priya"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+            onBlur={commitHandle}
+          />
+          {usernameNote && (
+            <span className={`mt-1.5 block text-xs ${usernameNote === "Available" ? "text-[var(--gold)]" : "text-[var(--rose)]"}`}>
+              {usernameNote}
+            </span>
+          )}
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-[0.7rem] uppercase tracking-wide text-[var(--muted)]">Phone</span>
+          <input
+            className="field"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="+91 98765 43210"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onBlur={commitHandle}
+          />
+          <span className="mt-1.5 block text-xs text-[var(--muted)]">
+            Friends can find you by this number. 10 digits uses +91.
+          </span>
+        </label>
+        {handleError && <p className="text-xs text-[var(--rose)]">{handleError}</p>}
+        {handleNote && <p className="text-xs text-[var(--gold)]">{handleNote}</p>}
         <label className="block">
           <span className="mb-1.5 block text-[0.7rem] uppercase tracking-wide text-[var(--muted)]">Name</span>
           <input className="field" value={profile.name} onChange={(e) => updateProfile({ name: e.target.value })} />

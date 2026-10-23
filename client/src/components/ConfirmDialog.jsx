@@ -1,12 +1,23 @@
-export function ConfirmDialog({ open, title, body, confirmLabel = "Confirm", danger = false, onConfirm, onCancel }) {
+export function ConfirmDialog({
+  open,
+  title,
+  body,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  danger = false,
+  onConfirm,
+  onCancel,
+  children,
+}) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[60] mx-auto flex max-w-[430px] items-end justify-center px-4 pb-[calc(5.8rem+env(safe-area-inset-bottom))]">
       <button type="button" className="absolute inset-0 bg-black/55" aria-label="Close" onClick={onCancel} />
-      <div className="card relative w-full rounded-[1.5rem] p-5">
+      <div className="card relative max-h-[70dvh] w-full overflow-y-auto rounded-[1.5rem] p-5">
         <h2 className="serif text-2xl font-semibold">{title}</h2>
         {body ? <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{body}</p> : null}
+        {children}
         <button
           type="button"
           className={
@@ -19,7 +30,7 @@ export function ConfirmDialog({ open, title, body, confirmLabel = "Confirm", dan
           {confirmLabel}
         </button>
         <button type="button" className="mt-2 w-full py-2.5 text-sm text-[var(--muted)]" onClick={onCancel}>
-          Cancel
+          {cancelLabel}
         </button>
       </div>
     </div>

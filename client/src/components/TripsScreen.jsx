@@ -1,12 +1,133 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { fetchIncomingShares } from "../lib/api.js";
+import { hasDatedTrip, withDayNote } from "../lib/calendar.js";
 import { daysUntil, formatTripSpan } from "../lib/dates.js";
 import { useTravel } from "../lib/TravelContext.jsx";
+import { TripCalendar } from "./TripCalendar.jsx";
 
 export function TripsScreen() {
-  const { trips } = useTravel();
-  const [q, setQ] = useState("");
+  const { trips, profile, addTrip } = useTravel();
+  const [params, setParams] = useSearchParams();
+  const [shared, setShared] = useState([]);
+  const dated = hasDatedTrip(trips);
+  const focusDay = params.get("day") || "";
+  const requested = params.get("view");
+  const view = focusDay ? "calendar" : requested === "list" ? "list" : requested === "calendar" || dated ? "calendar" : "list";
 
+  const setView = (next) => {
+    const query = new URLSearchParams(params);
+    query.set("view", next);
+    if (next === "list") query.delete("day");
+    setParams(query, { replace: true });
+  };
+
+  const setFocusDay = (iso) => {
+    const query = new URLSearchParams(params);
+    query.set("view", "calendar");
+    if (iso) query.set("day", iso);
+    else query.delete("day");
+    setParams(query, { replace: true });
+  };
+
+  useEffect(() => {
+    let cancel = false;
+    fetchIncomingShares()
+      .then((rows) => {
+        if (!cancel) setShared(rows);
+      })
+      .catch(() => {
+        if (!cancel) setShared([]);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  return (
+    <div className="safe-top safe-bottom px-5">
+      <p className="kicker">Library</p>
+      <h1 className="serif mt-1 text-[2.1rem] leading-tight font-semibold">Your trips.</h1>
+      <p className="mt-2 text-sm text-[var(--muted)]">
+        Saved to your account. They reload on any phone you sign in with.
+      </p>
+
+      <div className="mt-4 grid grid-cols-2 gap-1 rounded-2xl border border-[var(--line)] p-1">
+        <ViewTab active={view === "calendar"} onClick={() => setView("calendar")}>
+          Calendar
+        </ViewTab>
+        <ViewTab active={view === "list"} onClick={() => setView("list")}>
+          List
+        </ViewTab>
+      </div>
+
+      <SharedWithYou shares={shared} />
+
+      {view === "calendar" ? (
+        <TripCalendar
+          trips={trips}
+          profile={profile}
+          focusDay={focusDay}
+          onFocusDay={setFocusDay}
+          onShowList={() => setView("list")}
+          onSaveNote={(tripId, iso, text) => {
+            const trip = trips.find((item) => item.id === tripId);
+            if (!trip) return;
+            addTrip(withDayNote(trip, iso, text));
+          }}
+        />
+      ) : (
+        <TripList trips={trips} />
+      )}
+    </div>
+  );
+}
+
+function SharedWithYou({ shares }) {
+  if (!shares.length) return null;
+  return (
+    <section className="mt-6">
+      <p className="kicker">Shared with you</p>
+      <div className="mt-3 space-y-3">
+        {shares.map((share) => {
+          const trip = share.trip;
+          const by = share.sharedBy || {};
+          const title = trip?.plan?.title || trip?.plan?.destination || "Trip no longer available";
+          return (
+            <Link key={share.id} to={`/trips/shared/${share.id}`} className="card block rounded-[1.4rem] px-4 py-4">
+              <p className="text-xs text-[var(--gold)]">
+                Shared by {by.name || "someone"}
+                {by.username ? ` · @${by.username}` : ""}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold leading-tight">{title}</h2>
+              {trip?.plan && (
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  {formatTripSpan(trip.plan.startDate, trip.plan.daysCount) || trip.plan.duration || trip.plan.destination || ""}
+                </p>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ViewTab({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`rounded-xl py-2.5 text-sm font-medium ${active ? "btn-gold" : "text-[var(--muted)]"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TripList({ trips }) {
+  const [q, setQ] = useState("");
   const list = useMemo(() => {
     const query = q.trim().toLowerCase();
     const filtered = trips.filter((trip) => {
@@ -27,13 +148,7 @@ export function TripsScreen() {
   }, [q, trips]);
 
   return (
-    <div className="safe-top safe-bottom px-5">
-      <p className="kicker">Library</p>
-      <h1 className="serif mt-1 text-[2.1rem] leading-tight font-semibold">Your trips.</h1>
-      <p className="mt-2 text-sm text-[var(--muted)]">
-        Saved to your account. They reload on any phone you sign in with.
-      </p>
-
+    <>
       {trips.length >= 4 && (
         <input
           className="field mt-5"
@@ -80,6 +195,6 @@ export function TripsScreen() {
           })}
         </div>
       )}
-    </div>
+    </>
   );
 }
