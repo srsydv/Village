@@ -4,8 +4,9 @@
   "webDir": "client/dist",
   "server": {
     "androidScheme": "https",
-    "hostname": "aurea-jrvb.onrender.com"
+    "hostname": "safar.local"
   },
+  "backgroundColor": "#070b14",
   "android": {
     "allowMixedContent": false
   },

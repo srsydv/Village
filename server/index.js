@@ -23,7 +23,13 @@ const isProd = process.env.NODE_ENV === "production";
 if (isProd) app.set("trust proxy", 1);
 
 function allowedOrigins() {
-  const list = new Set(["https://localhost", "http://localhost", "capacitor://localhost"]);
+  const list = new Set([
+    "https://localhost",
+    "http://localhost",
+    "capacitor://localhost",
+    "https://safar.local",
+    "https://app.safartravel.app",
+  ]);
   const extra = `${process.env.CORS_ORIGINS || ""},${process.env.PUBLIC_APP_URL || ""}`;
   for (const origin of extra.split(",")) {
     const trimmed = origin.trim().replace(/\/$/, "");

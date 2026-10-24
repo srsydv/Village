@@ -50,16 +50,15 @@ if (!publicUrl.startsWith("https://")) {
   process.exit(1);
 }
 
-function applyCapacitorHostname(origin) {
+function useLocalPage() {
   const configPath = path.join(root, "capacitor.config.json");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-  const hostname = new URL(origin).hostname;
-  config.server = { ...(config.server || {}), androidScheme: "https", hostname };
+  config.server = { androidScheme: "https", hostname: "safar.local" };
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
-  console.log(`WebView origin: https://${hostname}`);
+  console.log("WebView loads the page stored in the app");
 }
 
-applyCapacitorHostname(publicUrl);
+useLocalPage();
 
 const javaHome =
   process.env.JAVA_HOME ||
@@ -109,7 +108,7 @@ await run("./gradlew", ["assembleDebug"], { JAVA_HOME: javaHome, ANDROID_HOME: a
 const built = path.join(androidDir, "app/build/outputs/apk/debug/app-debug.apk");
 const outDir = path.join(root, "release");
 fs.mkdirSync(outDir, { recursive: true });
-const dest = path.join(outDir, "Safar-testing.apk");
+const dest = path.join(outDir, "Safar-phone.apk");
 fs.copyFileSync(built, dest);
 console.log(`\nAPK ready:\n${dest}\n`);
 console.log("Send that file. On Android: open it, allow Install from this source, then Install.");
