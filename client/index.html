@@ -19,15 +19,32 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Outfit:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <style>
+      html, body, #root { margin: 0; min-height: 100%; background: #070b14; color: #f6efe4; }
+      #boot { margin: 0; padding: 28px 24px; font-family: sans-serif; font-size: 13px; letter-spacing: 0.28em; text-transform: uppercase; color: #c9a36a; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p id="boot">Safar</p></div>
+    <script>
+      (function () {
+        function show(message) {
+          var root = document.getElementById("root");
+          if (!root || root.getAttribute("data-booted") === "1") return;
+          var p = document.createElement("p");
+          p.setAttribute("style", "margin:0;padding:28px 24px;font-family:sans-serif;font-size:16px;line-height:1.45;color:#e8a0a0;");
+          p.textContent = message || "Safar could not start on this phone.";
+          root.replaceChildren(p);
+        }
+        window.addEventListener("error", function (event) {
+          show(event && event.message);
+        });
+        window.addEventListener("unhandledrejection", function (event) {
+          var reason = event && event.reason;
+          show((reason && reason.message) || "Safar could not start on this phone.");
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
