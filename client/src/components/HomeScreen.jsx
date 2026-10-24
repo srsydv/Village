@@ -3,11 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { chatPreview } from "../lib/chatHints.js";
 import { monthPeek } from "../lib/calendar.js";
 import { daysUntil, formatTripSpan } from "../lib/dates.js";
-import { CATEGORIES, DESTINATIONS } from "../lib/destinations.js";
+import { CATEGORIES } from "../lib/destinations.js";
+import { useIdeaDeck } from "../lib/useIdeaDeck.js";
 import { toggleMap } from "../lib/tripChecks.js";
 import { deskTrip } from "../lib/tripPhase.js";
 import { useTravel } from "../lib/TravelContext.jsx";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
+import { PlaceIdeas } from "./PlaceIdeas.jsx";
 import { PrepDesk, TodayDesk } from "./TodayDesk.jsx";
 import { WeekendCard } from "./WeekendCard.jsx";
 
@@ -22,8 +24,7 @@ export function HomeScreen() {
   const { profile, trips, chats, addTrip } = useTravel();
   const navigate = useNavigate();
   const [dest, setDest] = useState("");
-  const featured = DESTINATIONS[new Date().getDate() % DESTINATIONS.length];
-  const moreIdeas = DESTINATIONS.filter((d) => d.id !== featured.id).slice(0, 5);
+  const ideas = useIdeaDeck({ profile, trips });
   const lastChat = chats.find((c) => (c.messages || []).some((m) => m.content));
   const desk = deskTrip(trips);
   const peek = monthPeek(trips);
@@ -113,40 +114,7 @@ export function HomeScreen() {
       )}
       {!desk && <WeekendCard profile={profile} />}
 
-      <button
-        type="button"
-        className="card relative mt-5 w-full overflow-hidden rounded-[1.7rem] text-left"
-        onClick={() => goPlan(`${featured.name}, ${featured.country}`)}
-      >
-        <img src={featured.image} alt="" className="h-48 w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#070B14] via-[#070B14]/25 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 p-5">
-          <p className="kicker">Idea if you are stuck</p>
-          <h2 className="serif mt-1 text-3xl font-semibold">{featured.name}</h2>
-          <p className="mt-1 text-sm text-[#d8d2c6]">
-            {featured.country} · {featured.vibe}
-            {profile.currency === "INR" ? ` · from ${featured.from}` : ` · ${featured.season}`}
-          </p>
-        </div>
-      </button>
-
-      <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-1">
-        {moreIdeas.map((place) => (
-          <button
-            key={place.id}
-            type="button"
-            className="card relative h-36 w-36 shrink-0 overflow-hidden rounded-[1.2rem] text-left"
-            onClick={() => goPlan(`${place.name}, ${place.country}`)}
-          >
-            <img src={place.image} alt="" className="h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#070B14] via-transparent to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 p-2.5">
-              <p className="serif text-lg font-semibold leading-none">{place.name}</p>
-              <p className="mt-1 text-[0.65rem] text-[#d0c9bc]">{place.country}</p>
-            </div>
-          </button>
-        ))}
-      </div>
+      <PlaceIdeas deck={ideas} onOpen={goPlan} />
       <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
         {CATEGORIES.slice(0, 6).map((cat) => (
           <button

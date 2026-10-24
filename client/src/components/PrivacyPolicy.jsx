@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-const UPDATED = "22 September 2026";
+const UPDATED = "12 October 2026";
 
 export function PrivacyPolicy() {
   return (
@@ -28,7 +28,9 @@ export function PrivacyPolicy() {
           <h2 className="serif text-xl font-semibold text-[var(--cream)]">What stays on your device</h2>
           <p className="mt-2">
             Safar also keeps a copy of your profile, chats, and trips on this phone so the app works offline. Logging
-            out clears that copy. Your account copy stays in our database until you ask us to delete it.
+            out clears that copy. Your account copy stays in our database until you ask us to delete it. Phone
+            reminders are scheduled on this device from your saved dates. They are not sent to our server. Adding a
+            trip to your phone calendar hands that plan to the calendar app you choose.
           </p>
         </section>
         <section>

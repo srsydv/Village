@@ -4,6 +4,7 @@ import { fetchIncomingShares } from "../lib/api.js";
 import { hasDatedTrip, withDayNote } from "../lib/calendar.js";
 import { daysUntil, formatTripSpan } from "../lib/dates.js";
 import { useTravel } from "../lib/TravelContext.jsx";
+import { PhoneReminders } from "./PhoneReminders.jsx";
 import { TripCalendar } from "./TripCalendar.jsx";
 
 export function TripsScreen() {
@@ -60,6 +61,8 @@ export function TripsScreen() {
           List
         </ViewTab>
       </div>
+
+      <PhoneReminders trips={trips} />
 
       <SharedWithYou shares={shared} />
 

@@ -457,6 +457,116 @@ function takeUnique(list, limit) {
   return out;
 }
 
+function largerThumb(url) {
+  const raw = String(url || "").split("?")[0];
+  if (!raw) return "";
+  return raw.replace(/\/\d+px-([^/]+)$/, "/500px-$1");
+}
+
+async function overpassQuiet(ql) {
+  const body = new URLSearchParams({ data: ql }).toString();
+  try {
+    return await Promise.any(
+      OVERPASS.map((endpoint) =>
+        fetchJson(
+          endpoint,
+          { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body },
+          20000,
+        ),
+      ),
+    );
+  } catch {
+    return { elements: [] };
+  }
+}
+
+function populationOf(tags) {
+  const n = Number(String(tags?.population || "").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function nearbyScore(place) {
+  const pop = place.population || (place.kind === "city" ? 40000 : 15000);
+  const distance = place.distanceKm || 0;
+  return Math.log10(pop) * 18 - distance / 12;
+}
+
+function pickNearby(places, limit) {
+  const ranked = places
+    .filter((place) => place.distanceKm >= 25)
+    .map((place) => ({ ...place, score: nearbyScore(place) }))
+    .sort((a, b) => b.score - a.score);
+  const substantial = ranked.filter((place) => (place.population || 0) >= 80000);
+  return (substantial.length >= 3 ? substantial : ranked).slice(0, limit);
+}
+
+function nodesToCities(elements, origin, homeName, country) {
+  const home = String(homeName || "").trim().toLowerCase();
+  return (elements || [])
+    .map((el) => {
+      const tags = el.tags || {};
+      const name = tags["name:en"] || tags.name || "";
+      const lat = Number(el.lat);
+      const lon = Number(el.lon);
+      if (!name || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      if (name.trim().toLowerCase() === home) return null;
+      const distanceKm = haversineKm(origin, { lat, lon });
+      if (distanceKm == null || distanceKm < 20 || distanceKm > 260) return null;
+      return {
+        id: `near-${el.id || name}`,
+        name: name.trim(),
+        state: tags["is_in:state"] || tags.state || "",
+        country: country || "",
+        kind: tags.place || "city",
+        population: populationOf(tags),
+        distanceKm,
+        lat,
+        lon,
+      };
+    })
+    .filter(Boolean);
+}
+
+export async function nearbyCities(query, limit = 4) {
+  const geo = await geocode(query);
+  const lat = Number(geo.lat);
+  const lon = Number(geo.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { origin: null, places: [] };
+  const key = `near3:${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const data = await cached(key, async () => {
+    const origin = { lat, lon };
+    const cities = await overpassQuiet(
+      `[out:json][timeout:20];node["place"="city"](around:250000,${lat},${lon});out body 80;`,
+    );
+    let elements = cities.elements || [];
+    if (pickNearby(nodesToCities(elements, origin, geo.name, geo.country), limit).length < 3) {
+      const towns = await overpassQuiet(
+        `[out:json][timeout:20];node["place"="town"](around:120000,${lat},${lon});out body 40;`,
+      );
+      elements = elements.concat(towns.elements || []);
+    }
+    const picked = pickNearby(takeUnique(nodesToCities(elements, origin, geo.name, geo.country), 80), limit).sort(
+      (a, b) => a.distanceKm - b.distanceKm,
+    );
+    const [about, portraits] = await Promise.all([
+      wikiSummary(geo.name),
+      Promise.all(picked.map(async (place) => ({ ...place, image: largerThumb((await wikiSummary(place.name))?.image) }))),
+    ]);
+    return {
+      origin: {
+        name: geo.name,
+        country: geo.country || "",
+        lat,
+        lon,
+        image: largerThumb(about?.image),
+      },
+      places: portraits,
+    };
+  });
+  if (!data?.places?.length) cache.delete(key);
+  return data || { origin: null, places: [] };
+}
+
 export async function lookupDestination(query) {
   const geo = await geocode(query);
   const origin = { lat: geo.lat, lon: geo.lon };
