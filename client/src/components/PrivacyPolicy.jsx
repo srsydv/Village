@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-const UPDATED = "12 October 2026";
+const UPDATED = "24 October 2026";
 
 export function PrivacyPolicy() {
   return (
@@ -73,7 +73,8 @@ export function PrivacyPolicy() {
           </ul>
           <p className="mt-2">
             Booking.com, Airbnb, Zomato, and Google Maps open in the browser when you tap Book or Maps. Those sites
-            have their own policies. Safar does not take hotel payments.
+            have their own policies. Safar does not take hotel payments. Safar may earn a commission if you book through
+            these links. The price you pay is the same.
           </p>
         </section>
         <section>
