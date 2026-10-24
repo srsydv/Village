@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { createPlan, fetchPlaces, suggestPlaces } from "../lib/api.js";
+import { rememberPlace } from "../lib/placeHistory.js";
 import { formatTripSpan, travelerLine, tomorrowIso, tripEndIso } from "../lib/dates.js";
 import { emptyPicks, pickCount, togglePick } from "../lib/links.js";
 import { uid } from "../lib/storage.js";
@@ -147,6 +148,11 @@ export function PlanScreen() {
         fetchPlaces(destination).catch(() => null),
       ]);
       setPlan(packedPlan(nextPlan, destination, place?.country));
+      rememberPlace({
+        name: String(place?.name || destination).split(",")[0],
+        country: place?.country || nextPlan?.country || "",
+        label: destination,
+      });
       setCatalog(nextCatalog);
       setPicks(emptyPicks());
       setStep("itinerary");

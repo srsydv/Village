@@ -1,5 +1,5 @@
 import { generateDirect, hasDirectGemini } from "./geminiDirect.js";
-import { lookupDestinationDirect, suggestPlacesDirect } from "./placesDirect.js";
+import { lookupDestinationDirect, nearbyCities as nearbyCitiesDirect, suggestPlacesDirect } from "./placesDirect.js";
 import {
   DAY_JSON_INSTRUCTIONS,
   FLIGHT_PICKS_INSTRUCTIONS,
@@ -317,6 +317,25 @@ export async function suggestPlaces(query) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not look up that place.");
   return Array.isArray(data.places) ? data.places : [];
+}
+
+export async function nearbyPlaces(query) {
+  const q = String(query || "").trim();
+  if (q.length < 2) return { origin: null, places: [] };
+  try {
+    if (hasDirectGemini()) return await nearbyCitiesDirect(q);
+    const res = await apiFetch(`/api/places/nearby?q=${encodeURIComponent(q)}`, {
+      headers: activityHeaders(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { origin: null, places: [] };
+    return {
+      origin: data.origin || null,
+      places: Array.isArray(data.places) ? data.places : [],
+    };
+  } catch {
+    return { origin: null, places: [] };
+  }
 }
 
 export async function fetchPlaces(query) {

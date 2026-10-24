@@ -1,13 +1,19 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CATEGORIES, DESTINATIONS } from "../lib/destinations.js";
+import { useIdeaDeck } from "../lib/useIdeaDeck.js";
+import { useTravel } from "../lib/TravelContext.jsx";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
+import { PlaceIdeas } from "./PlaceIdeas.jsx";
 
 export function ExploreScreen() {
   const navigate = useNavigate();
+  const { profile, trips } = useTravel();
+  const ideas = useIdeaDeck({ profile, trips });
   const [params] = useSearchParams();
   const [active, setActive] = useState(params.get("tag") || "all");
   const [q, setQ] = useState("");
+  const showIdeas = ideas.source !== "starter" && active === "all" && !q.trim();
 
   const list = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -49,6 +55,8 @@ export function ExploreScreen() {
           </Chip>
         ))}
       </div>
+
+      {showIdeas ? <PlaceIdeas deck={ideas} onOpen={goPlan} /> : null}
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         {list.length === 0 && (

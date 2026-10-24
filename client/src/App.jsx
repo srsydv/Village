@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppShell } from "./components/AppShell.jsx";
+import { PhoneReminderSync } from "./components/PhoneReminders.jsx";
 import { ChatScreen } from "./components/ChatScreen.jsx";
 import { ExploreScreen } from "./components/ExploreScreen.jsx";
 import { HomeScreen } from "./components/HomeScreen.jsx";
@@ -21,19 +22,15 @@ export default function App() {
   const isAdmin = Boolean(account?.isAdmin);
   const adminView = pathname.startsWith("/admin");
 
-  if (!authChecked) {
-    return (
-      <div className="app-frame">
+  return (
+    <div className="app-frame">
+      <PhoneReminderSync />
+      {!authChecked ? (
         <div className="phone-shell grid min-h-dvh place-items-center">
           <p className="kicker">Safar</p>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="app-frame">
-      <div className={adminView ? "phone-shell phone-shell-admin" : "phone-shell"}>
+      ) : (
+        <div className={adminView ? "phone-shell phone-shell-admin" : "phone-shell"}>
         <ServiceWorkerRegister />
         <Routes>
           <Route path="/welcome" element={ready ? <Navigate to="/" replace /> : <Onboarding />} />
@@ -53,7 +50,8 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to={ready ? "/" : "/welcome"} replace />} />
         </Routes>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

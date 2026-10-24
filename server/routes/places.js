@@ -2,7 +2,7 @@ import { Router } from "express";
 import { logActivity } from "../lib/activity.js";
 import { logSearch } from "../lib/searches.js";
 import { placesSnapshot } from "../lib/snapshot.js";
-import { lookupDestination, suggestPlaces } from "../lib/places.js";
+import { lookupDestination, nearbyCities, suggestPlaces } from "../lib/places.js";
 
 const router = Router();
 
@@ -18,6 +18,17 @@ router.get("/suggest", async (req, res) => {
       error: err.message || "Could not look up that place.",
       places: [],
     });
+  }
+});
+
+router.get("/nearby", async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (q.length < 2) return res.json({ origin: null, places: [] });
+  try {
+    return res.json(await nearbyCities(q));
+  } catch (err) {
+    console.error("Nearby cities failed", err.message);
+    return res.json({ origin: null, places: [] });
   }
 });
 

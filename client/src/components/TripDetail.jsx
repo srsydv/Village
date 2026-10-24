@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { fetchIncomingShare, fetchOutgoingShares, rewriteDay } from "../lib/api.js";
+import { tripDates } from "../lib/calendar.js";
 import { addDaysIso, daysUntil, formatTripSpan } from "../lib/dates.js";
+import { addTripsToPhoneCalendar } from "../lib/phoneReminders.js";
 import { pickCount } from "../lib/links.js";
 import { uid } from "../lib/storage.js";
 import { clearDayVisits, dayNumber, pickVisitId, tidyTripTitle, toggleMap } from "../lib/tripChecks.js";
@@ -79,6 +81,7 @@ export function TripDetail({ incoming = null }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [sharedWith, setSharedWith] = useState([]);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [calendarNote, setCalendarNote] = useState("");
   const trip = incoming?.trip || trips.find((t) => t.id === id);
   const plan = trip?.plan;
   const picks = trip?.picks;
@@ -253,6 +256,28 @@ export function TripDetail({ incoming = null }) {
           <p className="mt-2 text-xs text-[var(--muted)]">Saved to your account. Share it with someone on Safar, or send the plan outside the app.</p>
         </>
       )}
+
+      {tripDates(trip) ? (
+        <div className="mt-3">
+          <button
+            type="button"
+            className="text-sm text-[var(--gold)]"
+            onClick={async () => {
+              setCalendarNote("");
+              try {
+                const result = await addTripsToPhoneCalendar([trip]);
+                if (result === "cancelled") return;
+                setCalendarNote(result === "shared" ? "Choose Calendar from the share sheet." : "Open the calendar file to add these days.");
+              } catch (err) {
+                setCalendarNote(err.message || "Could not add the calendar.");
+              }
+            }}
+          >
+            Add this plan to your phone calendar
+          </button>
+          {calendarNote ? <p className="mt-1 text-xs text-[var(--muted)]">{calendarNote}</p> : null}
+        </div>
+      ) : null}
 
       {!readOnly && phase === "prep" && <PrepDesk trip={trip} profile={profile} onToggle={toggleCheck} />}
       {!readOnly && phase === "on-trip" && <TodayDesk trip={trip} onToggleVisit={toggleVisit} />}
