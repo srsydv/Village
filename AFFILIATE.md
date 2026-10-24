@@ -36,7 +36,7 @@ Three accounts cover almost every link already in the app. Open them in this ord
 
 | Order | Account | What it unlocks | Apply |
 | --- | --- | --- | --- |
-| 1 | CJ | Booking.com stays. This is the link Safar already uses most. | [booking.com/affiliate-program](https://www.booking.com/affiliate-program/v2/index.html) then register on CJ for your travelers’ region |
+| 1 | CJ | Booking.com stays. This is the link Safar already uses most. | [CJ Booking.com signup](https://www.cj.com/en-gb/publisher/partners/booking.com). Choose **APAC** if most travelers are in India. |
 | 2 | Cuelinks | Indian hotels, flights, and redBus. One login, many brands. | [cuelinks.com](https://www.cuelinks.com/) |
 | 3 | The brand’s own form | Agoda stays, Kayak flights, Viator and GetYourGuide tours, Trip.com, Airalo eSIM | Links in the sections below |
 
@@ -48,12 +48,36 @@ These are the highest commissions. One finished hotel stay is worth more than a 
 
 ### Booking.com — do this first
 
-Safar already opens Booking.com from **See stays** and **Book stay**.
+Safar already opens Booking.com from **See stays** and **Book stay**. Join through CJ, not a form on Booking.com. Official page: [CJ Booking.com affiliate programme](https://www.cj.com/en-gb/publisher/partners/booking.com).
 
-- Apply: [Booking.com affiliate program](https://www.booking.com/affiliate-program/v2/index.html), then finish registration on CJ. The direct Booking.com signup is closed. CJ is the path their own page names.
-- Pays on: completed stays (and, where the program allows, other Booking.com trips). The exact rate is inside CJ after you apply. It is not printed on the public signup page.
-- Code: `staySearchUrl` in `client/src/lib/stays.js`, and the `booking` URL in `placeLinks` in `client/src/lib/links.js`.
-- After approval: CJ gives a deep-link tool. Put each Booking.com search URL through that tool, and use the tracking URL in those two functions. An old `aid=` from the closed direct program does not pay.
+Their page states the starting rates. The dashboard can change yours later if volume grows.
+
+| Completed booking | Starting commission |
+| --- | --- |
+| Accommodation stay | 4% |
+| Car rental | 6% |
+| Attraction | 4% |
+| Flight | £2 or €2 per flight |
+| Taxi | 4% |
+
+A ₹20,000 stay at 4% is ₹800. They pay when the stay is completed. A cancellation pays nothing.
+
+The cookie is the browser session. They pay only if the traveler finishes the booking in the same browser visit that opened from Safar. A link they save and use tomorrow does not count. [Their FAQ](https://www.cj.com/en-gb/publisher/partners/booking.com) calls this session-based.
+
+They accept a website or blog. A social profile alone is rejected. Listing fake Booking.com voucher codes gets you removed. They do not give voucher codes.
+
+**Steps**
+
+1. Put Safar on HTTPS first, with `/privacy` loading on that same domain. Have the commission sentence in the privacy policy.
+2. Open the [CJ Booking.com page](https://www.cj.com/en-gb/publisher/partners/booking.com).
+3. Under **Where’s Your Audience?**, choose **APAC**. India is in that list. Pick the region where the travelers are, which for Safar is India.
+4. Create a CJ publisher account, or sign in if you already have one. Use your own name, email, and bank country.
+5. Give them the live Safar URL, the privacy URL, and this description: “Safar is a travel-planning app. The traveler gets a day-by-day plan, then opens Booking.com for the live stay price. We do not take payment. We disclose that we may earn a commission.”
+6. Submit the Booking.com application for APAC. Approval is a review, not instant.
+7. Sign in at [cj.com](https://www.cj.com/) later and check the partnership status. They also email you.
+8. After it shows approved, open CJ’s deep-link tool. Paste a Safar Booking.com search URL in, copy the tracking URL they return, and send it over so it can go into `staySearchUrl` in `client/src/lib/stays.js` and the `booking` URL in `placeLinks` in `client/src/lib/links.js`.
+
+An old `aid=` from Booking.com’s closed direct program does not pay. Only the CJ tracking link does.
 
 ### Agoda — strong for Asia
 
