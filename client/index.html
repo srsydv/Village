@@ -14,36 +14,24 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Safar" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <base href="/" />
     <title>Safar — Travel Concierge</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <style>
-      html, body, #root { margin: 0; min-height: 100%; background: #070b14; color: #f6efe4; }
-      #boot { margin: 0; padding: 28px 24px; font-family: sans-serif; font-size: 13px; letter-spacing: 0.28em; text-transform: uppercase; color: #c9a36a; }
+      html, body { margin: 0; background: #070b14; color: #f6efe4; }
     </style>
   </head>
   <body>
-    <div id="root"><p id="boot">Safar</p></div>
+    <div id="root"></div>
     <script>
-      (function () {
-        function show(message) {
-          var root = document.getElementById("root");
-          if (!root || root.getAttribute("data-booted") === "1") return;
-          var p = document.createElement("p");
-          p.setAttribute("style", "margin:0;padding:28px 24px;font-family:sans-serif;font-size:16px;line-height:1.45;color:#e8a0a0;");
-          p.textContent = message || "Safar could not start on this phone.";
-          root.replaceChildren(p);
-        }
-        window.addEventListener("error", function (event) {
-          show(event && event.message);
-        });
-        window.addEventListener("unhandledrejection", function (event) {
-          var reason = event && event.reason;
-          show((reason && reason.message) || "Safar could not start on this phone.");
-        });
-      })();
+      window.onerror = function (message) {
+        var root = document.getElementById("root");
+        if (!root || root.childElementCount > 0) return;
+        root.textContent = String(message || "Safar could not start.");
+      };
     </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>

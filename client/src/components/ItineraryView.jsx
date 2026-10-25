@@ -19,6 +19,7 @@ export function ItineraryView({
   onToggleVisit,
   onRequestDay,
   onKeepDay,
+  onRefreshDays,
   todayIndex = null,
   stays = [],
   onToggleStay,
@@ -116,7 +117,7 @@ export function ItineraryView({
 
       {plan.days?.length > 0 && (
         <section className="mt-7">
-          <h2 className="serif text-2xl font-semibold">Days</h2>
+          <DaysHeading onRefreshDays={onRefreshDays} />
           <div className="mt-3 space-y-3">
             {plan.days.map((day, index) => (
               <DayArticle
@@ -147,6 +148,89 @@ export function ItineraryView({
         AI-generated. Check visas, prices, and opening hours before you travel.
       </p>
     </div>
+  );
+}
+
+function DaysHeading({ onRefreshDays }) {
+  const [open, setOpen] = useState(false);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const refresh = async () => {
+    if (!onRefreshDays) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onRefreshDays(comment.trim());
+      setComment("");
+      setOpen(false);
+    } catch (err) {
+      setError(err.message || "These days stayed as they were.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="serif text-2xl font-semibold">Days</h2>
+        {onRefreshDays ? (
+          <button
+            type="button"
+            className="grid h-11 w-11 place-items-center rounded-full border border-[var(--line)] text-[var(--gold)]"
+            aria-label="Refresh days"
+            disabled={busy}
+            onClick={() => {
+              setError("");
+              setOpen((value) => !value);
+            }}
+          >
+            <RefreshIcon spinning={busy} />
+          </button>
+        ) : null}
+      </div>
+      {open && (
+        <div className="card mt-3 rounded-[1.3rem] p-4">
+          <label className="text-[0.7rem] tracking-wide text-[var(--muted)] uppercase" htmlFor="refresh-days-note">
+            What should these days include?
+          </label>
+          <textarea
+            id="refresh-days-note"
+            className="field mt-2"
+            value={comment}
+            placeholder="A museum, a night market, a slower morning…"
+            onChange={(event) => setComment(event.target.value)}
+          />
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Leave this blank for a different set of days. A note Safar already knows is reused.
+          </p>
+          {error ? <p className="mt-2 text-sm text-[var(--rose)]">{error}</p> : null}
+          <button type="button" className="btn-gold mt-3 w-full rounded-2xl py-3 text-sm font-semibold" disabled={busy} onClick={refresh}>
+            {busy ? "Refreshing days…" : "Refresh days"}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function RefreshIcon({ spinning }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-5 w-5 ${spinning ? "animate-spin" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden="true"
+    >
+      <path d="M20 12a8 8 0 0 1-13.7 5.6" strokeLinecap="round" />
+      <path d="M4 12a8 8 0 0 1 13.7-5.6" strokeLinecap="round" />
+      <path d="M16 4.5h3.2V8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 19.5H4.8V16" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 

@@ -49,9 +49,9 @@ if (!publicUrl.startsWith("https://")) {
 function useLocalPage() {
   const configPath = path.join(root, "capacitor.config.json");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-  config.server = { androidScheme: "https", hostname: "safar.local" };
+  config.server = { androidScheme: "https", hostname: "localhost", appStartPath: "/" };
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
-  console.log("WebView loads the page stored in the app");
+  console.log("WebView URL https://localhost/");
 }
 
 useLocalPage();
@@ -94,6 +94,7 @@ if (!fs.existsSync(androidDir)) {
   await run("npx", ["cap", "add", "android"]);
 }
 
+fs.rmSync(path.join(root, "client", "dist", "sw.js"), { force: true });
 console.log("Syncing Capacitor…");
 await run("npx", ["cap", "sync", "android"]);
 

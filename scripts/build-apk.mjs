@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,25 @@ function loadEnv(file) {
     }
     if (process.env[key] == null) process.env[key] = value;
   }
+}
+
+function spawnKeytoolSha1(storeFile, storePassword, alias) {
+  const result = spawnSync(
+    "keytool",
+    ["-list", "-v", "-keystore", storeFile, "-alias", alias, "-storepass", storePassword],
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    console.error(result.stderr || "Could not read the upload certificate.");
+    process.exit(1);
+  }
+  const line = result.stdout.split("\n").find((row) => /SHA1:|SHA-1:/.test(row));
+  const sha = line?.split(":").slice(1).join(":").trim();
+  if (!sha) {
+    console.error("Upload certificate has no SHA-1.");
+    process.exit(1);
+  }
+  return sha;
 }
 
 function run(cmd, args, extraEnv = {}, cwd = root) {
@@ -53,9 +72,9 @@ if (!publicUrl.startsWith("https://")) {
 function useLocalPage() {
   const configPath = path.join(root, "capacitor.config.json");
   const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-  config.server = { androidScheme: "https", hostname: "safar.local" };
+  config.server = { androidScheme: "https", hostname: "localhost", appStartPath: "/" };
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
-  console.log("WebView loads the page stored in the app");
+  console.log("WebView URL https://localhost/");
 }
 
 useLocalPage();
@@ -78,14 +97,33 @@ process.env.PATH = [
   process.env.PATH,
 ].join(path.delimiter);
 
-console.log("This debug APK is for sideload testers only — not for Play Store.");
-console.log("Play Store: host the API, then npm run play:key && npm run play\n");
+const keystoreProps = path.join(root, "android", "keystore.properties");
+if (!fs.existsSync(keystoreProps)) {
+  console.error("android/keystore.properties is missing. The phone APK must be signed with the upload key.");
+  process.exit(1);
+}
+const signing = Object.fromEntries(
+  fs
+    .readFileSync(keystoreProps, "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#") && line.includes("="))
+    .map((line) => {
+      const eq = line.indexOf("=");
+      return [line.slice(0, eq).trim(), line.slice(eq + 1).trim()];
+    }),
+);
+const storeFile = path.join(root, "android", signing.storeFile || "");
+const sha = spawnKeytoolSha1(storeFile, signing.storePassword, signing.keyAlias);
+console.log("Release APK signed with the upload key.");
+console.log(`Android OAuth SHA-1: ${sha}`);
 console.log(`Phone API: ${publicUrl}`);
 await run("npm", ["run", "build", "-w", "client"], {
   VITE_CAPACITOR: "1",
   VITE_API_BASE: publicUrl,
   VITE_GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   VITE_GEMINI_MODEL: process.env.GEMINI_MODEL || "",
+  VITE_ANDROID_CERT_SHA1: sha,
 });
 
 const androidDir = path.join(root, "android");
@@ -94,18 +132,19 @@ if (!fs.existsSync(androidDir)) {
   await run("npx", ["cap", "add", "android"]);
 }
 
+fs.rmSync(path.join(root, "client", "dist", "sw.js"), { force: true });
 console.log("Syncing Capacitor…");
 await run("npx", ["cap", "sync", "android"]);
 
 const localProps = path.join(androidDir, "local.properties");
 fs.writeFileSync(localProps, `sdk.dir=${androidHome.replaceAll("\\", "\\\\")}\n`);
 
-console.log("Assembling debug APK…");
+console.log("Assembling release APK…");
 const gradlew = path.join(androidDir, "gradlew");
 fs.chmodSync(gradlew, 0o755);
-await run("./gradlew", ["assembleDebug"], { JAVA_HOME: javaHome, ANDROID_HOME: androidHome }, androidDir);
+await run("./gradlew", ["assembleRelease"], { JAVA_HOME: javaHome, ANDROID_HOME: androidHome }, androidDir);
 
-const built = path.join(androidDir, "app/build/outputs/apk/debug/app-debug.apk");
+const built = path.join(androidDir, "app/build/outputs/apk/release/app-release.apk");
 const outDir = path.join(root, "release");
 fs.mkdirSync(outDir, { recursive: true });
 const dest = path.join(outDir, "Safar-phone.apk");

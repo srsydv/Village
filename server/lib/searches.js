@@ -70,8 +70,9 @@ export function logSearch(req, extra = {}) {
     resultPlan: extra.resultPlan || null,
     places: extra.places || null,
     ok: extra.ok !== false,
+    cached: extra.cached === true,
     error: extra.error ? clip(extra.error, 180) : "",
-    model: clip(extra.model, 60),
+    model: clip(extra.model, 80),
   };
   collection()
     .then((col) => {

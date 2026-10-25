@@ -13,13 +13,15 @@ import {
   streamTravelReply,
 } from "../lib/gemini.js";
 import { applyStyleBudget, styleGuide } from "../../client/src/lib/styleBudget.js";
+import { findGeneratedPlan, listPlansForPlace, planMatchesRequest, saveGeneratedPlan } from "../lib/planCache.js";
+import { composeFromLibrary, daysFromPatch, lockedBrief, mergeGap, refreshDaysFromLibrary } from "../lib/planPieces.js";
 
 const router = Router();
 
-function profileLine(profile) {
+function profileLine(profile, { includeName = true } = {}) {
   if (!profile || typeof profile !== "object") return "";
   const bits = [
-    profile.name && `Traveler name: ${profile.name}`,
+    includeName && profile.name && `Traveler name: ${profile.name}`,
     profile.homeCity && `Home city: ${profile.homeCity}`,
     profile.currency && `Preferred currency: ${profile.currency}`,
   ].filter(Boolean);
@@ -34,6 +36,39 @@ const STAY_LABEL = {
   refined: "Refined — boutique or full service",
   exceptional: "Exceptional — a suite, villa, or leading resort",
 };
+
+function recordBuiltPlan(req, plan, model, cached = false) {
+  const { destination, country, days, startDate, endDate, travelers, budget, style, interests, notes } = req.body || {};
+  const snapshot = planSnapshot(plan);
+  const noted = cached ? `saved · ${model || "plan"}` : model;
+  logActivity(req, {
+    action: "plan",
+    query: String(destination || "").trim(),
+    ok: true,
+    model: noted,
+    plan: snapshot,
+  });
+  logSearch(req, {
+    kind: "plan",
+    destination,
+    country,
+    days,
+    startDate,
+    endDate,
+    travelers,
+    budget,
+    style,
+    interests,
+    notes,
+    ok: true,
+    cached,
+    model: noted,
+    resultTitle: plan?.title || plan?.destination,
+    resultDuration: plan?.duration || plan?.daysCount,
+    resultBudget: plan?.expenses?.total || plan?.budget?.total,
+    resultPlan: snapshot,
+  });
+}
 
 function stayBrief(stays, style) {
   const chosen = (Array.isArray(stays) ? stays : String(stays || "").split(","))
@@ -130,6 +165,7 @@ router.post("/plan", async (req, res) => {
     notes && `Extra notes: ${notes}`,
     `Currency: ${profile?.currency || "INR"}`,
     (origin || profile?.homeCity) && `Departing from: ${origin || profile.homeCity}`,
+    profile?.nationality && `Passport: ${profile.nationality}. Visa advice must match this passport.`,
     Array.isArray(modes) && modes.length
       ? `Compare these ways to get there, one way, per adult: ${modes.filter(Boolean).join(", ")}. Fill rides for each of these modes only.`
       : "The traveler did not ask for a transport comparison. Set rides to [].",
@@ -142,39 +178,48 @@ router.post("/plan", async (req, res) => {
     .join("\n");
 
   try {
+    const saved = await findGeneratedPlan(req.body || {});
+    if (saved?.plan) {
+      recordBuiltPlan(req, saved.plan, saved.model, true);
+      return res.json({ plan: saved.plan, model: saved.model || "", cached: true });
+    }
+
+    const library = await listPlansForPlace(destination);
+    const composed = composeFromLibrary(req.body || {}, library);
+    if (composed.mode === "ready" && composed.plan) {
+      const plan = applyStyleBudget(composed.plan, req.body || {});
+      await saveGeneratedPlan(req.body || {}, plan, "composed");
+      recordBuiltPlan(req, plan, "composed", true);
+      return res.json({ plan, model: "composed", cached: true });
+    }
+    if (composed.mode === "gaps" && composed.brief) {
+      try {
+        const patch = await generateTravelReply({
+          messages: [{ role: "user", content: composed.brief }],
+          system: composed.system,
+          json: true,
+        });
+        const merged = mergeGap(composed, parsePlanJson(patch.text));
+        if (merged) {
+          const plan = applyStyleBudget(merged, req.body || {});
+          await saveGeneratedPlan(req.body || {}, plan, patch.model);
+          recordBuiltPlan(req, plan, `patch · ${patch.model}`, false);
+          return res.json({ plan, model: patch.model, cached: false });
+        }
+      } catch {
+        /* A full plan still covers the trip when a small patch cannot be read. */
+      }
+    }
+
+    const fullBrief = composed.locked?.length ? `${brief}\n\n${lockedBrief(composed.locked)}` : brief;
     const { text, model } = await generateTravelReply({
-      messages: [{ role: "user", content: brief }],
-      system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(profile)}`,
+      messages: [{ role: "user", content: fullBrief }],
+      system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(profile, { includeName: false })}`,
       json: true,
     });
     const plan = applyStyleBudget(parsePlanJson(text), req.body || {});
-    const snapshot = planSnapshot(plan);
-    logActivity(req, {
-      action: "plan",
-      query: String(destination).trim(),
-      ok: true,
-      model,
-      plan: snapshot,
-    });
-    logSearch(req, {
-      kind: "plan",
-      destination,
-      country,
-      days,
-      startDate,
-      endDate,
-      travelers,
-      budget,
-      style,
-      interests,
-      notes,
-      ok: true,
-      model,
-      resultTitle: plan.title || plan.destination,
-      resultDuration: plan.duration || plan.daysCount,
-      resultBudget: plan.expenses?.total || plan.budget?.total,
-      resultPlan: snapshot,
-    });
+    await saveGeneratedPlan(req.body || {}, plan, model);
+    recordBuiltPlan(req, plan, model, false);
     return res.json({ plan, model });
   } catch (err) {
     logActivity(req, {
@@ -206,6 +251,81 @@ router.post("/plan", async (req, res) => {
           : err.message || "Safar could not build this plan.",
     });
   }
+});
+
+router.post("/days/refresh", async (req, res) => {
+  const destination = String(req.body?.destination || "").trim();
+  if (!destination) return res.status(400).json({ error: "Tell Safar where you want to go." });
+  const currentDays = Array.isArray(req.body?.days) ? req.body.days : [];
+  const comment = String(req.body?.comment || "").trim();
+
+  try {
+    const library = await listPlansForPlace(destination);
+    const refreshed = refreshDaysFromLibrary({ ...req.body, comment, destination }, library, currentDays);
+    if (refreshed.mode === "ready" && refreshed.days?.length) {
+      const plan = applyStyleBudget({ destination, country: req.body?.country, style: req.body?.style, days: refreshed.days }, req.body || {});
+      return res.json({ days: plan.days, cached: true });
+    }
+
+    const { text, model } = await generateTravelReply({
+      messages: [{ role: "user", content: refreshed.brief }],
+      system: refreshed.system,
+      json: true,
+    });
+    const parsed = parsePlanJson(text);
+    const merged = refreshed.mode === "gaps" ? mergeGap(refreshed, parsed) : null;
+    const days = merged?.days?.length ? merged.days : daysFromPatch(parsed);
+    if (!days.length) throw new SyntaxError("Invalid days JSON");
+    const plan = applyStyleBudget(
+      {
+        title: destination,
+        destination,
+        country: req.body?.country || "",
+        style: req.body?.style,
+        summary: comment,
+        days,
+      },
+      req.body || {},
+    );
+    await saveGeneratedPlan(
+      { ...req.body, destination, notes: comment, interests: comment || req.body?.interests },
+      plan,
+      model,
+    );
+    logActivity(req, { action: "plan", query: `refresh ${destination}`, ok: true, model });
+    return res.json({ days: plan.days, model });
+  } catch (err) {
+    logActivity(req, { action: "plan", query: `refresh ${destination}`, ok: false, error: err.message });
+    const status = err.status || (err instanceof SyntaxError ? 502 : 500);
+    return res.status(status).json({
+      error: err instanceof SyntaxError ? "Safar could not refresh these days. The old days are unchanged." : err.message || "Safar could not refresh these days.",
+    });
+  }
+});
+
+router.post("/plan/match", async (req, res) => {
+  const destination = String(req.body?.destination || "").trim();
+  if (!destination) return res.json({ plan: null });
+  const saved = await findGeneratedPlan(req.body || {});
+  if (!saved?.plan) return res.json({ plan: null });
+  recordBuiltPlan(req, saved.plan, saved.model, true);
+  return res.json({ plan: saved.plan, model: saved.model || "", cached: true });
+});
+
+router.post("/plan/library", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).json({ error: "Not found." });
+  }
+  const destination = String(req.body?.destination || "").trim();
+  const plan = req.body?.plan;
+  if (!destination) return res.status(400).json({ error: "Tell Safar where you want to go." });
+  if (!planMatchesRequest(req.body || {}, plan)) {
+    return res.status(400).json({ error: "That plan does not match this trip." });
+  }
+  const model = String(req.body?.model || "").trim();
+  await saveGeneratedPlan(req.body || {}, plan, model);
+  recordBuiltPlan(req, plan, model, false);
+  return res.json({ ok: true });
 });
 
 function asDay(parsed, dayNumber) {
