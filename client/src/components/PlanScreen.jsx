@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { createPlan, fetchPlaces, suggestPlaces } from "../lib/api.js";
+import { createPlan, fetchPlaces, refreshDays, suggestPlaces } from "../lib/api.js";
 import { rememberPlace } from "../lib/placeHistory.js";
 import { formatTripSpan, travelerLine, tomorrowIso, tripEndIso } from "../lib/dates.js";
 import { emptyPicks, pickCount, togglePick } from "../lib/links.js";
@@ -125,7 +125,7 @@ export function PlanScreen() {
         }
       }
       const destination = place?.label || form.destination.trim();
-      setPhase("Writing your days and comparing fares…");
+      setPhase("Building your days and comparing fares…");
       const payload = {
         ...form,
         origin: form.origin.trim(),
@@ -239,6 +239,25 @@ export function PlanScreen() {
           stays={form.stays}
           onToggleStay={(id) => setForm((current) => ({ ...current, stays: toggleStay(current.stays, id) }))}
           onFlightPicks={(flightPicks) => setPlan((current) => (current ? { ...current, flightPicks } : current))}
+          onRefreshDays={async (comment) => {
+            const days = await refreshDays({
+              destination: plan?.destination || form.destination,
+              country: plan?.country || pickedPlace?.country || "",
+              style: form.style,
+              interests: form.interests,
+              budget: form.budget,
+              travelers: plan?.travelers,
+              adults: form.adults,
+              kids: form.kids,
+              origin: form.origin,
+              modes: form.modes,
+              stays: form.stays,
+              comment,
+              profile,
+              days: plan?.days,
+            });
+            setPlan((current) => (current ? { ...current, days } : current));
+          }}
         />
         <div className="mt-8 space-y-2">
           {plan && (
@@ -401,8 +420,8 @@ export function PlanScreen() {
 }
 
 function PlanBusy({ phase }) {
-  const steps = ["Looking up that place…", "Writing your days and comparing fares…"];
-  const active = phase?.includes("Writing") ? 1 : 0;
+  const steps = ["Looking up that place…", "Building your days and comparing fares…"];
+  const active = phase?.includes("Building") ? 1 : 0;
   return (
     <div className="fixed inset-0 z-50 mx-auto flex max-w-[430px] items-end bg-black/25 px-4 pb-[calc(6.4rem+env(safe-area-inset-bottom))]">
       <div className="card busy-card w-full rounded-[1.6rem] p-5">
@@ -413,13 +432,13 @@ function PlanBusy({ phase }) {
           </span>
           <div className="min-w-0">
             <p className="kicker">Working</p>
-            <p className="serif mt-1 text-[1.65rem] leading-tight font-semibold">{phase || "Writing your plan…"}</p>
+            <p className="serif mt-1 text-[1.65rem] leading-tight font-semibold">{phase || "Building your plan…"}</p>
           </div>
         </div>
         <div className="plan-track mt-4">
           <span />
         </div>
-        <p className="mt-3 text-sm text-[var(--muted)]">This usually takes 15–30 seconds. Stay on this screen.</p>
+        <p className="mt-3 text-sm text-[var(--muted)]">A place Safar already knows comes back faster. Stay on this screen.</p>
         <ol className="mt-4 space-y-2.5 text-sm">
           {steps.map((label, i) => (
             <li key={label} className={`flex min-h-6 items-center gap-2.5 ${i === active ? "text-[var(--gold-bright)]" : "text-[var(--muted)]"}`}>

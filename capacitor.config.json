@@ -4,15 +4,19 @@
   "webDir": "client/dist",
   "server": {
     "androidScheme": "https",
-    "hostname": "safar.local"
+    "hostname": "localhost",
+    "appStartPath": "/"
   },
-  "backgroundColor": "#070b14",
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "backgroundColor": "#070B14"
   },
   "plugins": {
     "CapacitorHttp": {
       "enabled": true
+    },
+    "SystemBars": {
+      "insetsHandling": "disable"
     }
   }
 }

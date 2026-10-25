@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GoogleSignIn as NativeGoogleSignIn } from "@capawesome/capacitor-google-sign-in";
 import { fetchAuthConfig, signInWithGoogleCredential } from "../lib/api.js";
 
 let gisPromise;
@@ -8,7 +9,7 @@ function isNativeApp() {
 }
 
 function nativeGoogle() {
-  return window.Capacitor?.Plugins?.GoogleSignIn || null;
+  return isNativeApp() ? NativeGoogleSignIn : null;
 }
 
 function loadGis() {
@@ -36,12 +37,19 @@ function loadGis() {
 function signInError(err) {
   const code = String(err?.code || "");
   const message = String(err?.message || "");
-  if (code.includes("CANCELED") || /cancel/i.test(message)) return "Sign-in was cancelled.";
+  const sha = String(import.meta.env.VITE_ANDROID_CERT_SHA1 || "").trim();
+  const fingerprint = sha ? ` SHA-1 ${sha}.` : "";
   if (code.includes("NO_CREDENTIAL") || /no google account/i.test(message)) {
     return "Add a Google account on this phone, then try again.";
   }
-  if (/reauth|UNREGISTERED|Api Console|10\b/i.test(message + code)) {
-    return "This Android app is not registered in Google Cloud. Add an Android OAuth client for com.safartravel.app.";
+  if (code.includes("PROVIDER_CONFIGURATION")) {
+    return "Update Google Play services, then try again.";
+  }
+  if (/developer console|not set up correctly|DEVELOPER_ERROR|UNREGISTERED|ApiException: 10|\[10\]/i.test(message)) {
+    return `Google rejected this app certificate. Add an Android OAuth client for com.safartravel.app with${fingerprint}`;
+  }
+  if (code.includes("CANCELED") || /cancel/i.test(message)) {
+    return `Google closed sign-in before an account was chosen. Add an Android OAuth client for com.safartravel.app with${fingerprint} Use the same Google Cloud project as the web client. If the consent screen is in Testing, add your Gmail as a test user.`;
   }
   return message || "Google sign-in failed.";
 }

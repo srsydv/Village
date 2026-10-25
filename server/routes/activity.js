@@ -122,7 +122,7 @@ router.get("/ops/searches", async (req, res) => {
         <td>${escapeHtml(row.destination)}${row.country ? `<div class="muted">${escapeHtml(row.country)}</div>` : ""}</td>
         <td>${escapeHtml(when)}<div class="muted">${escapeHtml(row.travelers)}</div></td>
         <td>${escapeHtml(row.budget || row.resultBudget)}<div class="muted">${escapeHtml(row.style)}</div></td>
-        <td>${row.ok === false ? "fail" : "ok"}<div class="muted">${escapeHtml(row.resultTitle || row.error || row.model)}</div></td>
+        <td>${row.ok === false ? "fail" : "ok"}${row.cached ? `<div class="muted">Saved plan</div>` : ""}<div class="muted">${escapeHtml(row.resultTitle || row.error || row.model)}</div></td>
       </tr>`;
     })
     .join("");

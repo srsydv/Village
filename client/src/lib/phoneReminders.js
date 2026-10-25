@@ -1,3 +1,4 @@
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { localIso, tripDates } from "./calendar.js";
 
 const PREF_KEY = "safar.phoneReminders";
@@ -21,7 +22,12 @@ function enqueue(task) {
 
 function nativeNotifications() {
   if (typeof window === "undefined" || !window.Capacitor?.isNativePlatform?.()) return null;
-  return window.Capacitor?.Plugins?.LocalNotifications || null;
+  return LocalNotifications || null;
+}
+
+function asPromise(value) {
+  if (value && typeof value.then === "function") return value;
+  return Promise.resolve(value);
 }
 
 export function remindersAvailable() {
@@ -278,7 +284,7 @@ export async function addTripsToPhoneCalendar(trips) {
 async function cancelStored(plugin) {
   const ids = readIds();
   if (ids.length) {
-    await plugin.cancel({ notifications: ids.map((id) => ({ id })) }).catch(() => {});
+    await asPromise(plugin.cancel({ notifications: ids.map((id) => ({ id })) })).catch(() => {});
   }
   writeIds([]);
 }
@@ -288,15 +294,15 @@ async function syncBody(trips) {
   if (!plugin || !phoneRemindersOn()) return 0;
   const perm = await plugin.checkPermissions();
   if (perm?.display !== "granted") return 0;
-  await plugin
-    .createChannel?.({
+  await asPromise(
+    plugin.createChannel?.({
       id: CHANNEL_ID,
       name: "Plans and calendar",
       description: "The evening before a trip and each morning of the plan",
       importance: 4,
       visibility: 1,
-    })
-    .catch(() => {});
+    }),
+  ).catch(() => {});
   await cancelStored(plugin);
   const items = buildReminders(trips);
   if (!items.length) return 0;
@@ -352,17 +358,25 @@ export function listenForReminderOpens(onOpen) {
   if (!plugin?.addListener) return () => {};
   let removed = false;
   let handle = null;
-  plugin
-    .addListener("localNotificationActionPerformed", (event) => {
+  const remember = (next) => {
+    if (removed) next?.remove?.();
+    else handle = next;
+  };
+  try {
+    const pending = plugin.addListener("localNotificationActionPerformed", (event) => {
       onOpen(event?.notification?.extra || {});
-    })
-    .then((next) => {
-      if (removed) next?.remove?.();
-      else handle = next;
-    })
-    .catch(() => {});
+    });
+    if (pending && typeof pending.then === "function") pending.then(remember).catch(() => {});
+    else remember(pending);
+  } catch {
+    return () => {};
+  }
   return () => {
     removed = true;
+    if (handle && typeof handle.then === "function") {
+      handle.then((next) => next?.remove?.()).catch(() => {});
+      return;
+    }
     handle?.remove?.();
   };
 }

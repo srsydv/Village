@@ -350,28 +350,55 @@ export async function fetchPlaces(query) {
   return data;
 }
 
-export async function createPlan(payload) {
-  if (hasDirectGemini()) {
-    const { text } = await generateDirect({
-      messages: [{ role: "user", content: planBrief(payload) }],
-      system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(payload.profile)}`,
-      json: true,
+async function keepGeneratedPlan(payload, plan, model) {
+  try {
+    await apiFetch("/api/travel/plan/library", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...activityHeaders() },
+      body: JSON.stringify({ ...payload, visitorId: getVisitorId(), plan, model }),
     });
-    try {
-      return applyStyleBudget(parsePlanJson(text), payload);
-    } catch {
-      throw new Error("Safar drafted a plan but it could not be formatted. Please try again.");
-    }
+  } catch {
+    /* This traveler still sees the plan. The next match can generate it. */
   }
+}
 
+async function createPlanOnServer(payload) {
   const res = await apiFetch("/api/travel/plan", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...activityHeaders() },
     body: JSON.stringify({ ...payload, visitorId: getVisitorId() }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Safar could not build this plan.");
+  if (!res.ok) {
+    const error = new Error(data.error || "Safar could not build this plan.");
+    error.status = res.status;
+    throw error;
+  }
+  if (!data?.plan) throw new Error("Safar could not build this plan.");
   return applyStyleBudget(data.plan, payload);
+}
+
+export async function createPlan(payload) {
+  try {
+    return await createPlanOnServer(payload);
+  } catch (err) {
+    const status = Number(err?.status) || 0;
+    if (!hasDirectGemini() || (status && status < 500)) throw err;
+  }
+
+  const { text, model } = await generateDirect({
+    messages: [{ role: "user", content: planBrief(payload) }],
+    system: `${SYSTEM_PROMPT}\n\n${PLAN_JSON_INSTRUCTIONS}${profileLine(payload.profile, { includeName: false })}`,
+    json: true,
+  });
+  let plan;
+  try {
+    plan = applyStyleBudget(parsePlanJson(text), payload);
+  } catch {
+    throw new Error("Safar drafted a plan but it could not be formatted. Please try again.");
+  }
+  await keepGeneratedPlan(payload, plan, model);
+  return plan;
 }
 
 function asDay(parsed, dayNumber) {
@@ -416,6 +443,19 @@ export async function suggestFlights(journey) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Could not choose flights for this date.");
   return Array.isArray(data.flightPicks) ? data.flightPicks.slice(0, 3) : [];
+}
+
+export async function refreshDays(payload) {
+  const res = await apiFetch("/api/travel/days/refresh", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ ...payload, visitorId: getVisitorId() }),
+  });
+  const data = await res.json();
+  if (!res.ok || !Array.isArray(data.days) || !data.days.length) {
+    throw new Error(data.error || "Safar could not refresh these days. The old days are unchanged.");
+  }
+  return data.days;
 }
 
 export async function rewriteDay(payload) {

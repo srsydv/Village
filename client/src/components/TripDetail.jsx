@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { fetchIncomingShare, fetchOutgoingShares, rewriteDay } from "../lib/api.js";
+import { fetchIncomingShare, fetchOutgoingShares, refreshDays, rewriteDay } from "../lib/api.js";
 import { tripDates } from "../lib/calendar.js";
 import { addDaysIso, daysUntil, formatTripSpan } from "../lib/dates.js";
 import { addTripsToPhoneCalendar } from "../lib/phoneReminders.js";
@@ -346,6 +346,27 @@ export function TripDetail({ incoming = null }) {
         onToggleVisit={readOnly ? undefined : toggleVisit}
         onRequestDay={!readOnly && plan?.days?.length ? requestDay : undefined}
         onKeepDay={readOnly ? undefined : keepDay}
+        onRefreshDays={
+          readOnly || !plan?.days?.length
+            ? undefined
+            : async (comment) => {
+                const days = await refreshDays({
+                  destination: plan?.destination || city,
+                  country: plan?.country,
+                  style: trip.travel?.style || plan?.style,
+                  travelers: plan?.travelers,
+                  adults: trip.travel?.adults,
+                  kids: trip.travel?.kids,
+                  origin: trip.travel?.origin || profile.homeCity,
+                  modes: trip.travel?.modes,
+                  stays: trip.travel?.stays,
+                  comment,
+                  profile,
+                  days: plan.days,
+                });
+                saveTrip({ ...trip, plan: { ...plan, days }, visited: {} });
+              }
+        }
         todayIndex={todayIndex}
       />
 

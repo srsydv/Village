@@ -175,10 +175,10 @@ Schema:
 }
 Pick one realistic place for a 2-day weekend from the traveler's home city. Do not pick the home city itself. Title is short. Summary is one or two sentences.`;
 
-export function profileLine(profile) {
+export function profileLine(profile, { includeName = true } = {}) {
   if (!profile || typeof profile !== "object") return "";
   const bits = [
-    profile.name && `Traveler name: ${profile.name}`,
+    includeName && profile.name && `Traveler name: ${profile.name}`,
     profile.homeCity && `Home city: ${profile.homeCity}`,
     profile.currency && `Preferred currency: ${profile.currency}`,
     profile.nationality && `Passport / nationality: ${profile.nationality}`,
