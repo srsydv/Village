@@ -30,6 +30,7 @@ body,
   min-height: 100%;
   background: #05070d;
   color: var(--cream);
+  color-scheme: dark;
   font-family: var(--font-sans);
 }
 
@@ -141,6 +142,12 @@ textarea.field {
 
 .field::placeholder {
   color: #6d7588;
+}
+
+select.field,
+select.field option {
+  background-color: #141c2f;
+  color: var(--cream);
 }
 
 .kicker {

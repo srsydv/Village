@@ -14,9 +14,25 @@ import {
 } from "../lib/gemini.js";
 import { applyStyleBudget, styleGuide } from "../../client/src/lib/styleBudget.js";
 import { findGeneratedPlan, listPlansForPlace, planMatchesRequest, saveGeneratedPlan } from "../lib/planCache.js";
-import { composeFromLibrary, daysFromPatch, lockedBrief, mergeGap, refreshDaysFromLibrary } from "../lib/planPieces.js";
+import { composeFromLibrary, daysFromPatch, departureMatches, lockedBrief, mergeGap, namesCity, refreshDaysFromLibrary } from "../lib/planPieces.js";
+import { getUser, subscriptionView } from "../lib/users.js";
 
 const router = Router();
+
+router.use(async (req, res, next) => {
+  try {
+    const region = String(req.get("x-safar-region") || "").trim().toUpperCase();
+    if (region === "IN") return next();
+    if (!req.user?.uid) {
+      return res.status(402).json({ error: "Subscribe to plan a trip or ask Safar.", code: "subscription" });
+    }
+    const user = await getUser(req.user.uid);
+    if (subscriptionView(user)) return next();
+    return res.status(402).json({ error: "Subscribe to plan a trip or ask Safar.", code: "subscription" });
+  } catch (err) {
+    return next(err);
+  }
+});
 
 function profileLine(profile, { includeName = true } = {}) {
   if (!profile || typeof profile !== "object") return "";
@@ -179,7 +195,8 @@ router.post("/plan", async (req, res) => {
 
   try {
     const saved = await findGeneratedPlan(req.body || {});
-    if (saved?.plan) {
+    const askedOrigin = origin || profile?.homeCity;
+    if (saved?.plan && departureMatches(saved.plan, askedOrigin)) {
       recordBuiltPlan(req, saved.plan, saved.model, true);
       return res.json({ plan: saved.plan, model: saved.model || "", cached: true });
     }
@@ -199,7 +216,10 @@ router.post("/plan", async (req, res) => {
           system: composed.system,
           json: true,
         });
-        const merged = mergeGap(composed, parsePlanJson(patch.text));
+        const parsed = parsePlanJson(patch.text);
+        const originGap = composed.gaps?.find((gap) => gap.type === "origin");
+        let merged = mergeGap(composed, parsed);
+        if (merged && originGap && namesCity(merged, originGap.from)) merged = null;
         if (merged) {
           const plan = applyStyleBudget(merged, req.body || {});
           await saveGeneratedPlan(req.body || {}, plan, patch.model);

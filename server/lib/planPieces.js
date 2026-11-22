@@ -15,6 +15,7 @@ export const GAP_SYSTEM = `You fill only the missing pieces of a trip that is al
 Return ONLY valid JSON. No markdown.
 Schema:
 {
+  "summary": "",
   "slots": [{ "day": 1, "morning": "", "afternoon": "", "evening": "", "food": "" }],
   "extraDays": [{ "title": "", "morning": "", "afternoon": "", "evening": "", "food": "" }],
   "tips": ["string"],
@@ -107,6 +108,10 @@ export function composeFromLibrary(input = {}, docs = []) {
 
   const visaGap = applyVisa(draft, cityDocs, input, base);
   const gaps = [];
+  const askedOrigin = input.origin || input.profile?.homeCity;
+  if (askedOrigin && base.origin && !sameCityName(base.origin, askedOrigin)) {
+    gaps.push({ type: "origin", from: base.origin, to: askedOrigin });
+  }
   if (missing.length) gaps.push({ type: "interests", items: missing });
   if (extraDays) gaps.push({ type: "days", count: extraDays });
   if (!transport && modeList(input.modes).length) gaps.push({ type: "transport", modes: modeList(input.modes) });
@@ -169,6 +174,11 @@ export function mergeGap(composed, patch) {
     next.visa = patch.visa.trim();
     placed = true;
   }
+  const originGap = (composed.gaps || []).find((gap) => gap.type === "origin");
+  if (originGap && typeof patch.summary === "string" && patch.summary.trim()) {
+    next.summary = patch.summary.trim();
+    placed = true;
+  }
   if (!placed) return null;
 
   const phrases = composed.phrases || [];
@@ -187,6 +197,7 @@ export function refreshDaysFromLibrary(input = {}, docs = [], currentDays = []) 
 
   if (!phrases.length) {
     for (const doc of cityDocs) {
+      if (input.origin && doc.origin && !sameCityName(doc.origin, input.origin)) continue;
       const fitted = fitDays(doc.plan.days.map((day) => clone(day)), count, []);
       if (fitted.length && !sameOutline(fitted, current)) return { mode: "ready", days: fitted };
     }
@@ -424,8 +435,30 @@ function gapBrief(input, plan, gaps) {
         `Return visa as one short paragraph for a ${profile.nationality} passport visiting ${input.country || input.destination}. The traveler applies themselves.`,
       );
     }
+    if (gap.type === "origin") {
+      lines.push(
+        `The outline departs from ${gap.from}. This traveler departs from ${gap.to}. Return summary naming ${gap.to} as the departure city. Return slots that rewrite only the journey there and the journey home, with a realistic travel time from ${gap.to}. Remove every mention of ${gap.from}. Keep the sightseeing.`,
+      );
+    }
   }
   return lines.filter(Boolean).join("\n");
+}
+
+export function namesCity(plan, city) {
+  const key = placeKey(city);
+  if (!key || key.length < 4) return false;
+  return foldText(planBlob(plan)).includes(key);
+}
+
+export function departureMatches(plan, origin) {
+  const city = placeKey(origin);
+  if (!city || city.length < 4 || !plan) return true;
+  const journey = foldText(
+    [plan.summary, plan.days?.[0]?.title, plan.days?.[0]?.morning, plan.days?.at?.(-1)?.evening].filter(Boolean).join(" "),
+  );
+  if (!journey) return true;
+  if (journey.includes(city)) return true;
+  return !/\bfrom [a-z]/.test(journey);
 }
 
 function lockExcerpts(docs, phrases) {

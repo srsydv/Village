@@ -2,6 +2,7 @@ import { Component, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
+import { AccessProvider } from "./lib/access.jsx";
 import { TravelProvider } from "./lib/TravelContext.jsx";
 import "./index.css";
 
@@ -32,7 +33,9 @@ createRoot(document.getElementById("root")).render(
     <BootBoundary>
       <BrowserRouter>
         <TravelProvider>
-          <App />
+          <AccessProvider>
+            <App />
+          </AccessProvider>
         </TravelProvider>
       </BrowserRouter>
     </BootBoundary>

@@ -13,6 +13,7 @@ import {
   profileLine,
 } from "./prompts.js";
 import { applyStyleBudget } from "./styleBudget.js";
+import { currentRegion, geminiAllowed } from "./region.js";
 import { getAuthToken, getChats, getProfile, getTrips, getVisitorId } from "./storage.js";
 
 function apiUrl(path) {
@@ -69,15 +70,42 @@ async function apiFetch(path, options = {}) {
   };
 }
 
+function ensureGemini() {
+  if (currentRegion() === "IN" || geminiAllowed()) return;
+  const error = new Error("Subscribe to plan a trip or ask Safar.");
+  error.status = 402;
+  throw error;
+}
+
 function activityHeaders() {
   const profile = getProfile();
   const token = getAuthToken();
+  const region = currentRegion();
   return {
     "X-Safar-Visitor": getVisitorId(),
     "X-Safar-Name": profile.name || "",
     "X-Safar-Home": profile.homeCity || "",
+    ...(region ? { "X-Safar-Region": region } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+export async function fetchBillingStatus() {
+  const res = await apiFetch("/api/billing/status", { headers: activityHeaders() });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not check the subscription.");
+  return data;
+}
+
+export async function verifyPlayPurchase({ productId, purchaseToken }) {
+  const res = await apiFetch("/api/billing/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ productId, purchaseToken }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Could not confirm the subscription.");
+  return data;
 }
 
 export async function fetchAuthConfig() {
@@ -234,6 +262,7 @@ export async function fetchIncomingShare(id) {
 }
 
 export async function askSafar({ messages, profile, onDelta }) {
+  ensureGemini();
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
       messages: messages.slice(-16),
@@ -379,6 +408,7 @@ async function createPlanOnServer(payload) {
 }
 
 export async function createPlan(payload) {
+  ensureGemini();
   try {
     return await createPlanOnServer(payload);
   } catch (err) {
@@ -425,6 +455,7 @@ function asDay(parsed, dayNumber) {
 }
 
 export async function suggestFlights(journey) {
+  ensureGemini();
   const brief = flightPicksBrief(journey);
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
@@ -446,6 +477,7 @@ export async function suggestFlights(journey) {
 }
 
 export async function refreshDays(payload) {
+  ensureGemini();
   const res = await apiFetch("/api/travel/days/refresh", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...activityHeaders() },
@@ -459,6 +491,7 @@ export async function refreshDays(payload) {
 }
 
 export async function rewriteDay(payload) {
+  ensureGemini();
   const dayNumber = Number(payload?.dayNumber);
   const note = String(payload?.comment || "").trim();
   const otherDays = Array.isArray(payload?.otherDays) ? payload.otherDays : [];
@@ -502,6 +535,7 @@ export async function rewriteDay(payload) {
 }
 
 export async function suggestWeekend(profile) {
+  ensureGemini();
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
       messages: [

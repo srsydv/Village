@@ -104,7 +104,7 @@ export function Onboarding() {
                   className="field"
                   placeholder="Phone — 98765 43210"
                   inputMode="tel"
-                  autoComplete="tel"
+                  autoComplete="off"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />

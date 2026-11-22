@@ -71,7 +71,7 @@ export function PrivacyScreen() {
 
   return (
     <div className="safe-top safe-bottom px-5">
-      <Link to="/" className="text-sm text-[var(--gold)]">
+      <Link to="/home" className="text-sm text-[var(--gold)]">
         ← Home
       </Link>
       <p className="kicker mt-5">You</p>
@@ -164,7 +164,7 @@ export function PrivacyScreen() {
           <input
             className="field"
             inputMode="tel"
-            autoComplete="tel"
+            autoComplete="off"
             placeholder="+91 98765 43210"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}

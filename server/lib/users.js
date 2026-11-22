@@ -45,6 +45,24 @@ export async function usersCol() {
   return col;
 }
 
+export function subscriptionView(doc) {
+  const sub = doc?.subscription;
+  if (!sub?.productId || !sub?.expiresAt) return null;
+  const expires = Date.parse(sub.expiresAt);
+  if (!Number.isFinite(expires) || expires < Date.now()) return null;
+  return { active: true, productId: sub.productId, expiresAt: sub.expiresAt };
+}
+
+export async function saveSubscription(uid, subscription) {
+  if (!ObjectId.isValid(uid)) return null;
+  const col = await usersCol();
+  await col.updateOne(
+    { _id: new ObjectId(uid) },
+    { $set: { subscription, updatedAt: new Date() } },
+  );
+  return getUser(uid);
+}
+
 export function publicUser(doc) {
   if (!doc) return null;
   return {
@@ -59,6 +77,7 @@ export function publicUser(doc) {
     nationality: doc.nationality || "India",
     chats: Array.isArray(doc.chats) ? doc.chats : [],
     trips: Array.isArray(doc.trips) ? doc.trips : [],
+    subscription: subscriptionView(doc),
   };
 }
 

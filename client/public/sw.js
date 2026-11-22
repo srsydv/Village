@@ -1,4 +1,4 @@
-const CACHE = "safar-v1";
+const CACHE = "safar-v2";
 const PRECACHE = ["/", "/explore", "/plan", "/choose", "/trips", "/ask", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -24,6 +24,9 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
+  if (url.pathname.startsWith("/src/") || url.pathname.startsWith("/@") || url.pathname.startsWith("/node_modules/")) {
+    return;
+  }
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(req).catch(
