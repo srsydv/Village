@@ -4,12 +4,15 @@ import {
   askSafar,
   checkUsername,
   createPlan,
+  fetchAdminOverview,
+  fetchAdminUser,
   fetchAdminUsers,
   fetchAuthConfig,
   signInWithGoogleCredential,
   suggestFlights,
   suggestPlaces,
 } from "../../lib/api.js";
+import { ASK_IDEAS, readOffer } from "../../lib/askOffers.js";
 import { formatTripSpan, tomorrowIso, travelerLine, tripEndIso } from "../../lib/dates.js";
 import { placeLinks, PLAY_STORE_URL } from "../../lib/links.js";
 import { CURRENCY_OPTIONS, PASSPORT_OPTIONS } from "../../lib/profileOptions.js";
@@ -382,21 +385,6 @@ function Desk({ travel }) {
   );
 }
 
-const ASK_IDEAS = [
-  [
-    { title: "Where to go", prompt: "A quiet weekend from Delhi", icon: "compass" },
-    { title: "Find a stay", prompt: "A comfortable hotel in Udaipur for two", icon: "bed" },
-    { title: "Things to do", prompt: "What should I eat in Jaipur?", icon: "place" },
-    { title: "Getting there", prompt: "Train or flight from Delhi to Varanasi", icon: "ticket" },
-  ],
-  [
-    { title: "Where to go", prompt: "A hill town near Mumbai for the weekend", icon: "compass" },
-    { title: "Find a stay", prompt: "A simple stay in Goa for four nights", icon: "bed" },
-    { title: "Things to do", prompt: "Temples and food in Madurai", icon: "place" },
-    { title: "Getting there", prompt: "Overnight train from Delhi to Lucknow", icon: "ticket" },
-  ],
-];
-
 function Ask({ messages, busy, error, draft, setDraft, onSend, threadRef, profile }) {
   const [ideaSet, setIdeaSet] = useState(0);
   const empty = messages.length === 0;
@@ -468,61 +456,6 @@ function Ask({ messages, busy, error, draft, setDraft, onSend, threadRef, profil
       {empty ? null : compose}
     </section>
   );
-}
-
-function readOffer(raw) {
-  const text = String(raw || "").replace(/\s+/g, " ").trim();
-  if (!text) return null;
-  const lower = text.toLowerCase();
-  const tidy = (value) =>
-    String(value || "")
-      .replace(/\b(for|with|on|this|next|tomorrow|tonight|please|around|about)\b.*$/i, "")
-      .replace(/[?.!,].*$/, "")
-      .trim();
-
-  const modes = [];
-  if (/\b(flight|flights|fly|flying|plane|airline|airlines)\b/.test(lower)) modes.push("flight");
-  if (/\b(train|trains|rail|railway)\b/.test(lower)) modes.push("train");
-  if (/\b(bus|buses|coach)\b/.test(lower)) modes.push("bus");
-
-  let from = "";
-  let to = "";
-  const route = text.match(/\bfrom\s+([A-Za-z][A-Za-z .'-]{1,40}?)\s+to\s+([A-Za-z][A-Za-z .'-]{1,40})/i);
-  if (route) {
-    from = tidy(route[1]);
-    to = tidy(route[2]);
-  }
-  if (from && to && !modes.length) modes.push("flight", "train", "bus");
-
-  const inCity = text.match(/\bin\s+([A-Za-z][A-Za-z .'-]{1,40})/i);
-  const city = inCity ? tidy(inCity[1]) : "";
-  const stayHit = /\b(hotel|hotels|stay|stays|hostel|guesthouse|resort)\b/.test(lower);
-  const foodHit = /\b(eat|food|restaurant|restaurants|dinner|lunch|breakfast|cafe)\b/.test(lower);
-  const sightHit = /\b(temple|temples|sight|sights|things to do|what to do|visit)\b/.test(lower);
-  const stayCity = stayHit ? city || to : "";
-  const placeCity = foodHit || sightHit ? city || to : "";
-  if (!((from && to && modes.length) || stayCity || placeCity)) return null;
-
-  const stayIds = [];
-  if (stayCity) {
-    if (/\b(dorm|hostel)\b/.test(lower)) stayIds.push("dorm");
-    if (/\b(guesthouse|simple)\b/.test(lower)) stayIds.push("simple");
-    if (/\b(comfortable|3-star|3 star)\b/.test(lower)) stayIds.push("comfortable");
-    if (/\b(polished|4-star|4 star)\b/.test(lower)) stayIds.push("polished");
-    if (/\b(boutique|refined|5-star|5 star)\b/.test(lower)) stayIds.push("refined");
-    if (/\b(villa|resort|exceptional)\b/.test(lower)) stayIds.push("exceptional");
-    if (!stayIds.length) stayIds.push("simple", "comfortable", "polished", "refined");
-  }
-
-  return {
-    from,
-    to,
-    modes,
-    stayCity,
-    stayIds,
-    foodCity: foodHit ? placeCity : "",
-    sightCity: sightHit ? placeCity : "",
-  };
 }
 
 function AskOffers({ question, profile }) {
@@ -1227,14 +1160,19 @@ function FareCard({ option, fallbackHref = "" }) {
 
 function People() {
   const [users, setUsers] = useState([]);
+  const [overview, setOverview] = useState(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [view, setView] = useState("latest");
+  const [selected, setSelected] = useState("");
 
   useEffect(() => {
     let cancel = false;
-    fetchAdminUsers()
-      .then((data) => {
-        if (!cancel) setUsers(data.users || []);
+    Promise.all([fetchAdminUsers(), fetchAdminOverview()])
+      .then(([people, pulse]) => {
+        if (cancel) return;
+        setUsers(people.users || []);
+        setOverview(pulse);
       })
       .catch((err) => {
         if (!cancel) setError(err.message || "Could not load people.");
@@ -1244,14 +1182,54 @@ function People() {
     };
   }, []);
 
+  if (selected) return <Person id={selected} onBack={() => setSelected("")} />;
+
   const shown = users.filter((user) => filter === "all" || user.joinedVia === filter);
   const webCount = users.filter((user) => user.joinedVia === "web").length;
   const appCount = users.length - webCount;
+  const asked = users.filter((user) => user.chatCount > 0).length;
+  const planned = users.filter((user) => user.tripCount > 0).length;
+  const quiet = users.filter((user) => !user.chatCount && !user.tripCount).length;
+  const totals = Object.fromEntries((overview?.cards || []).map((card) => [card.key, card.value]));
+  const places = (overview?.destinations || []).slice(0, 4);
+  const recent = (overview?.recent || []).slice(0, 24);
 
   return (
-    <section className="web-panel">
+    <section className="web-panel web-people">
       <h1>People</h1>
-      <p>Who joined from the app, and who joined on the web. Anyone from before the website is listed as App.</p>
+      <p>Every question Safar was asked, the reply that went back, and the trips people planned.</p>
+      <div className="web-filters">
+        <button type="button" className={view === "latest" ? "is-on" : ""} onClick={() => setView("latest")}>
+          Latest
+        </button>
+        <button type="button" className={view === "users" ? "is-on" : ""} onClick={() => setView("users")}>
+          Users
+        </button>
+      </div>
+      {view === "latest" ? (
+        <>
+      <div className="web-analysis">
+        <p>{users.length} people signed in. {asked} have a saved question, {planned} have a saved trip, and {quiet} have not asked or saved anything yet.</p>
+        <p>{totals.asks || 0} questions reached Safar, {totals.asksWeek || 0} of them in the last 7 days. {totals.plans || 0} plans were written, including ones they did not save.</p>
+        <p>{places.length ? `Most planned places: ${places.map((place) => `${place.name} (${place.count})`).join(", ")}.` : "No destination has been planned often enough to stand out yet."}</p>
+      </div>
+      <div className="web-stats">
+        {(overview?.cards || []).map((card) => (
+          <article key={card.key}>
+            <strong>{card.value}</strong>
+            <span>{card.label}</span>
+          </article>
+        ))}
+      </div>
+      <div className="web-feed">
+        {recent.map((row, index) => (
+          <FeedRow key={row.id || `${row.at}-${index}`} row={row} />
+        ))}
+        {recent.length === 0 && !error ? <p className="web-empty">No questions logged yet.</p> : null}
+      </div>
+        </>
+      ) : (
+        <>
       <div className="web-filters">
         <button type="button" className={filter === "all" ? "is-on" : ""} onClick={() => setFilter("all")}>
           All {users.length}
@@ -1263,30 +1241,180 @@ function People() {
           Web {webCount}
         </button>
       </div>
-      {error ? <p className="web-error">{error}</p> : null}
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Joined</th>
-            <th>When</th>
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map((user) => (
-            <tr key={user.id}>
-              <td>{user.name || "No name yet"}</td>
-              <td>{user.email}</td>
-              <td>{user.joinedVia === "web" ? "Web" : "App"}</td>
-              <td>{when(user.createdAt)}</td>
+      <div className="web-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Last question</th>
+              <th>Questions</th>
+              <th>Trips</th>
+              <th>Joined</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {shown.map((user) => (
+              <tr key={user.id} onClick={() => setSelected(user.id)}>
+                <td>
+                  <strong>{user.name || "No name yet"}</strong>
+                  <small>{user.email}</small>
+                </td>
+                <td>{user.lastAsk || "—"}</td>
+                <td>{user.chatCount || 0}</td>
+                <td>{user.tripCount || 0}</td>
+                <td>{user.joinedVia === "web" ? "Web" : "App"} · {when(user.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {shown.length === 0 && !error ? <p className="web-empty">No one in this list yet.</p> : null}
+        </>
+      )}
+      {error ? <p className="web-error">{error}</p> : null}
     </section>
   );
+}
+
+function FeedRow({ row }) {
+  const [open, setOpen] = useState(false);
+  const reply = row.reply || row.plan?.summary || row.error || "";
+  return (
+    <article>
+      <button type="button" onClick={() => setOpen((value) => !value)}>
+        <span>{row.action || row.kind || "Ask"} · {row.name || row.email || "Someone"}</span>
+        <strong>{row.query || row.destination || row.resultTitle || "No text stored"}</strong>
+        <em>{whenTime(row.at)}</em>
+      </button>
+      {open ? (
+        <div>
+          {reply ? <RichText text={reply} /> : <p className="web-note">Safar’s reply was not stored for this older row.</p>}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function Person({ id, onBack }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [tab, setTab] = useState("chats");
+
+  useEffect(() => {
+    let cancel = false;
+    fetchAdminUser(id)
+      .then((next) => {
+        if (!cancel) setData(next);
+      })
+      .catch((err) => {
+        if (!cancel) setError(err.message || "Could not open this person.");
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [id]);
+
+  const user = data?.user;
+  const chats = user?.chats || [];
+  const trips = user?.trips || [];
+  const activity = data?.activity || [];
+  const searches = data?.searches || [];
+  const asks = activity.filter((row) => row.action === "ask");
+
+  return (
+    <section className="web-panel web-people">
+      <button type="button" className="web-quiet" onClick={onBack}>
+        All people
+      </button>
+      {!user && !error ? <p className="web-note">Opening their questions…</p> : null}
+      {error ? <p className="web-error">{error}</p> : null}
+      {user ? (
+        <>
+          <h1>{user.name || "No name yet"}</h1>
+          <p>{user.email} · {user.homeCity || "No home city"} · joined on the {user.joinedVia === "web" ? "web" : "app"} · {when(user.createdAt)}</p>
+          <div className="web-filters">
+            <button type="button" className={tab === "chats" ? "is-on" : ""} onClick={() => setTab("chats")}>Questions {chats.length}</button>
+            <button type="button" className={tab === "asks" ? "is-on" : ""} onClick={() => setTab("asks")}>Replies {asks.length}</button>
+            <button type="button" className={tab === "plans" ? "is-on" : ""} onClick={() => setTab("plans")}>Plans {searches.length}</button>
+            <button type="button" className={tab === "trips" ? "is-on" : ""} onClick={() => setTab("trips")}>Saved trips {trips.length}</button>
+          </div>
+          {tab === "chats" ? (
+            <div className="web-feed">
+              {chats.length === 0 ? <p className="web-empty">No saved conversation.</p> : null}
+              {chats.map((chat) => (
+                <article key={chat.id}>
+                  <p className="web-kicker">{whenTime(chat.updatedAt)}</p>
+                  {(chat.messages || []).map((message, index) => (
+                    <div key={`${chat.id}-${index}`} className={message.role === "user" ? "web-qa is-you" : "web-qa"}>
+                      <span>{message.role === "user" ? "They asked" : "Safar replied"}</span>
+                      {message.role === "user" ? <p>{message.content}</p> : <RichText text={message.content} />}
+                    </div>
+                  ))}
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {tab === "asks" ? (
+            <div className="web-feed">
+              {asks.length === 0 ? <p className="web-empty">No logged reply for this email yet.</p> : null}
+              {asks.map((row, index) => (
+                <article key={row.id || index}>
+                  <p className="web-kicker">{whenTime(row.at)}{row.ok === false ? " · failed" : ""}</p>
+                  <div className="web-qa is-you">
+                    <span>They asked</span>
+                    <p>{row.query || "—"}</p>
+                  </div>
+                  <div className="web-qa">
+                    <span>Safar replied</span>
+                    {row.reply ? <RichText text={row.reply} /> : <p className="web-note">{row.error || "The reply was not stored."}</p>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {tab === "plans" ? (
+            <div className="web-feed">
+              {searches.length === 0 ? <p className="web-empty">No plan search stored.</p> : null}
+              {searches.map((row, index) => (
+                <article key={row.id || index}>
+                  <p className="web-kicker">{whenTime(row.at)} · {row.kind || "plan"}</p>
+                  <h3>{row.resultTitle || row.destination || "Plan"}</h3>
+                  <p className="web-span">{[row.destination, row.startDate, row.endDate, row.travelers, row.style, row.resultBudget].filter(Boolean).join(" · ")}</p>
+                  {row.notes ? <p>{row.notes}</p> : null}
+                  {row.resultPlan?.summary ? <p>{row.resultPlan.summary}</p> : null}
+                  {Array.isArray(row.resultPlan?.days) ? (
+                    <ol>
+                      {row.resultPlan.days.map((day, dayIndex) => (
+                        <li key={day.day || dayIndex}>{day.title || `Day ${day.day || dayIndex + 1}`}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {tab === "trips" ? (
+            <div className="web-feed">
+              {trips.length === 0 ? <p className="web-empty">No saved trip.</p> : null}
+              {trips.map((trip) => (
+                <article key={trip.id}>
+                  <h3>{trip.plan?.title || trip.plan?.destination || "Trip"}</h3>
+                  <p className="web-span">{[trip.plan?.duration, trip.plan?.travelers, whenTime(trip.createdAt)].filter(Boolean).join(" · ")}</p>
+                  {trip.plan?.summary ? <p>{trip.plan.summary}</p> : null}
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function whenTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 }
 
 function placeName(trip) {
