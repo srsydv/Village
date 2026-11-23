@@ -364,6 +364,56 @@
 .web-compose .web-solid { flex: none; padding: 10px 16px; }
 
 .web-panel { max-width: 820px; padding-bottom: 64px; }
+.web-people { max-width: none; }
+.web-analysis {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+.web-analysis p { margin: 0; line-height: 1.5; }
+.web-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 14px; }
+.web-stats article {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.web-stats strong { display: block; font-family: "Cormorant Garamond", Georgia, serif; font-size: 1.8rem; font-weight: 500; }
+.web-stats span { color: var(--soft); font-size: 0.82rem; }
+.web-people h2 { margin: 28px 0 8px; font-family: "Cormorant Garamond", Georgia, serif; font-size: 2rem; font-weight: 500; }
+.web-feed { display: grid; gap: 10px; margin-top: 12px; }
+.web-feed article {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.web-feed article > button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.web-feed article > button span,
+.web-qa > span { color: var(--gold); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.web-feed article > button strong { font-weight: 500; }
+.web-feed article > button em { color: var(--soft); font-style: normal; font-size: 0.78rem; }
+.web-qa { margin-top: 10px; }
+.web-qa.is-you p { margin: 4px 0 0; }
+.web-table-wrap { overflow: auto; margin-top: 8px; }
+.web-people tbody tr { cursor: pointer; }
+.web-people tbody tr:hover { background: rgba(255, 253, 248, 0.7); }
+.web-people td strong, .web-people td small { display: block; }
+.web-people td small { color: var(--soft); font-size: 0.78rem; }
+.web-people .web-quiet { margin: 0 0 8px; padding: 0; }
 .web-trip h1 { max-width: 16ch; }
 .web-summary { max-width: 62ch; margin: 12px 0 0; line-height: 1.55; }
 .web-block { margin-top: 34px; }

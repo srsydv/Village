@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { askSafar } from "../lib/api.js";
+import { askSafar, suggestFlights } from "../lib/api.js";
+import { ASK_IDEAS, readOffer } from "../lib/askOffers.js";
 import { chatPreview, planSeedFromChat } from "../lib/chatHints.js";
-import { timeAgo } from "../lib/dates.js";
-import { QUICK_ASKS } from "../lib/destinations.js";
+import { timeAgo, tomorrowIso } from "../lib/dates.js";
+import { placeLinks } from "../lib/links.js";
 import { RichText } from "../lib/richtext.jsx";
+import { STAY_STANDARDS, staySearchUrl } from "../lib/stays.js";
 import { uid } from "../lib/storage.js";
+import { buildJourney } from "../lib/transport.js";
 import { useTravel } from "../lib/TravelContext.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
 
@@ -26,6 +29,7 @@ export function ChatScreen() {
   const [error, setError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(openHistory);
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [ideaSet, setIdeaSet] = useState(0);
   const scroller = useRef(null);
   const asked = useRef(false);
 
@@ -116,7 +120,6 @@ export function ChatScreen() {
   }, [messages, busy]);
 
   const empty = messages.length === 0 && !busy;
-  const chips = useMemo(() => QUICK_ASKS.slice(0, 4), []);
   const past = chats.filter((c) => (c.messages || []).some((m) => m.content));
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant" && m.content);
   const seed = lastAssistant && !busy ? planSeedFromChat(messages) : null;
@@ -152,23 +155,28 @@ export function ChatScreen() {
 
       <div ref={scroller} className="no-scrollbar flex-1 overflow-y-auto px-5 pb-2">
         {empty && (
-          <div className="rise card mt-2 rounded-[1.5rem] p-5">
-            <p className="serif text-2xl">Ask anything.</p>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-              Questions, ideas, writing, how something works, or a trip. Whatever you want.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {chips.map((c) => (
+          <div className="rise mt-2">
+            <p className="serif text-[1.7rem] leading-tight">Where should we go next?</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {ASK_IDEAS[ideaSet].map((idea) => (
                 <button
-                  key={c.id}
+                  key={idea.prompt}
                   type="button"
-                  className="rounded-full border border-[var(--line)] px-3 py-1.5 text-xs text-[#d8d2c6]"
-                  onClick={() => send(c.prompt)}
+                  className="rounded-2xl border border-[var(--line)] bg-[rgba(20,28,47,0.55)] px-3 py-3 text-left"
+                  onClick={() => send(idea.prompt)}
                 >
-                  {c.label}
+                  <span className="block text-sm font-medium text-[var(--cream)]">{idea.title}</span>
+                  <span className="mt-1 block text-xs leading-snug text-[var(--muted)]">{idea.prompt}</span>
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className="mt-3 text-xs text-[var(--gold)]"
+              onClick={() => setIdeaSet((current) => (current + 1) % ASK_IDEAS.length)}
+            >
+              More ideas
+            </button>
           </div>
         )}
 
@@ -184,7 +192,14 @@ export function ChatScreen() {
             >
               {m.role === "assistant" ? (
                 m.content ? (
-                  <RichText text={m.content} />
+                  <>
+                    <RichText text={m.content} />
+                    <ChatOffers
+                      question={[...messages.slice(0, i)].reverse().find((item) => item.role === "user")?.content || ""}
+                      profile={profile}
+                      live={i === messages.length - 1}
+                    />
+                  </>
                 ) : (
                   <p className="typing text-[var(--gold-bright)]">
                     <span>●</span> <span>●</span> <span>●</span>
@@ -301,5 +316,132 @@ export function ChatScreen() {
         }}
       />
     </div>
+  );
+}
+
+function ChatOffers({ question, profile, live }) {
+  const offer = readOffer(question);
+  const [picks, setPicks] = useState(null);
+  const [note, setNote] = useState("");
+  const flight = Boolean(offer?.modes?.includes("flight") && offer.from && offer.to);
+
+  useEffect(() => {
+    if (!live || !flight) return undefined;
+    let cancel = false;
+    setNote("Choosing flights…");
+    suggestFlights({
+      from: offer.from,
+      to: offer.to,
+      date: tomorrowIso(),
+      adults: 1,
+      kids: 0,
+      currency: profile?.currency || "INR",
+      profile,
+    })
+      .then((next) => {
+        if (cancel) return;
+        setPicks(Array.isArray(next) ? next.slice(0, 3) : []);
+        setNote("");
+      })
+      .catch(() => {
+        if (!cancel) setNote("");
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [live, flight, offer?.from, offer?.to, profile?.currency]);
+
+  if (!offer) return null;
+  const board = offer.from && offer.to && offer.modes.length
+    ? buildJourney({
+        from: offer.from,
+        to: offer.to,
+        date: tomorrowIso(),
+        adults: 1,
+        kids: 0,
+        modes: offer.modes,
+        flightPicks: picks,
+        currency: profile?.currency || "INR",
+        profile,
+      })
+    : null;
+  const stays = STAY_STANDARDS.filter((item) => offer.stayIds.includes(item.id));
+  const food = offer.foodCity ? placeLinks({ name: offer.foodCity }, offer.foodCity) : null;
+  const sights = offer.sightCity
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`things to do in ${offer.sightCity}`)}`
+    : "";
+  const flightSearch = board
+    ? `https://www.google.com/travel/flights/search?q=${encodeURIComponent(`One way flights from ${board.from} to ${board.to}`)}`
+    : "";
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">
+      <p className="kicker">Book</p>
+      {note ? <p className="text-xs text-[var(--muted)]">{note}</p> : null}
+      {board?.options.map((option) => {
+        const primary = option.partners?.find((item) => item.primary) || option.partners?.[0];
+        const href = primary?.href || (option.id === "flight" ? flightSearch : "");
+        return (
+          <div key={option.id} className="rounded-2xl border border-[var(--line)] px-3 py-2.5">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium">{option.label}</p>
+              {option.price ? <p className="text-xs text-[var(--gold-bright)]">{option.price}</p> : null}
+            </div>
+            {option.picks?.length ? (
+              <div className="mt-2 space-y-1.5">
+                {option.picks.map((pick) => (
+                  <a
+                    key={`${pick.airline}-${pick.fareLow}`}
+                    href={pick.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <span>{pick.airline}</span>
+                    <span className="text-[var(--gold-bright)]">{pick.typicalFare || "See flight"}</span>
+                  </a>
+                ))}
+              </div>
+            ) : href ? (
+              <a href={href} target="_blank" rel="noreferrer" className="mt-2 block text-xs font-medium text-[var(--gold-bright)]">
+                {primary?.action || "See flights"}
+              </a>
+            ) : null}
+          </div>
+        );
+      })}
+      {stays.map((item) => {
+        const href = staySearchUrl({ id: item.id, destination: offer.stayCity, startDate: tomorrowIso(), adults: 1 });
+        if (!href) return null;
+        return (
+          <a key={item.id} href={href} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] px-3 py-2.5">
+            <span>
+              <span className="block text-sm">{item.label}</span>
+              <span className="mt-0.5 block text-[0.65rem] text-[var(--muted)]">{item.search} in {offer.stayCity}</span>
+            </span>
+            <span className="shrink-0 text-xs text-[var(--gold-bright)]">See stays</span>
+          </a>
+        );
+      })}
+      {food ? (
+        <>
+          <OfferLink href={food.zomato} title="Restaurants" detail={`Food in ${offer.foodCity}`} action="See on Zomato" />
+          <OfferLink href={food.maps} title="Places to eat" detail={`Maps search in ${offer.foodCity}`} action="Open Maps" />
+        </>
+      ) : null}
+      {sights ? <OfferLink href={sights} title="Things to do" detail={`Sights in ${offer.sightCity}`} action="Open Maps" /> : null}
+    </div>
+  );
+}
+
+function OfferLink({ href, title, detail, action }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] px-3 py-2.5">
+      <span>
+        <span className="block text-sm">{title}</span>
+        <span className="mt-0.5 block text-[0.65rem] text-[var(--muted)]">{detail}</span>
+      </span>
+      <span className="shrink-0 text-xs text-[var(--gold-bright)]">{action}</span>
+    </a>
   );
 }
