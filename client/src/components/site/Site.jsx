@@ -167,11 +167,10 @@ function Header() {
           <Link to="/privacy">Privacy</Link>
         </nav>
         <div className="site-bar-actions">
-          <a className="site-pill site-pill-ghost" href={PLAY_STORE_URL}>
-            Get the app
-          </a>
-          <Link to="/try" className="site-pill">
-            Try Safar
+          <Link to="/try" className="site-pill site-pill-live">
+            <PillStars />
+            <span>Try Safar</span>
+            <Plane />
           </Link>
           <button
             type="button"
@@ -196,11 +195,10 @@ function Header() {
           <Link to="/privacy" onClick={() => setOpen(false)}>
             Privacy
           </Link>
-          <a className="site-pill site-pill-ghost" href={PLAY_STORE_URL} onClick={() => setOpen(false)}>
-            Get the app
-          </a>
-          <Link to="/try" className="site-pill" onClick={() => setOpen(false)}>
-            Try Safar
+          <Link to="/try" className="site-pill site-pill-live" onClick={() => setOpen(false)}>
+            <PillStars />
+            <span>Try Safar</span>
+            <Plane />
           </Link>
         </nav>
       ) : null}
@@ -226,16 +224,14 @@ function Hero() {
         Ask for a city, a weekend, or a month away. Safar comes back with the days, a place to stay, where to eat, and what is worth the walk.
       </p>
       <div className="site-cta-row">
-        <Link to="/try" className="site-cta">
-          <span>Try Safar</span>
+        <a className="site-cta site-pill-live" href={PLAY_STORE_URL}>
+          <PillStars />
+          <span>Get the app</span>
           <Plane />
-        </Link>
-        <a className="site-cta site-cta-ghost" href={PLAY_STORE_URL}>
-          Get the app
         </a>
       </div>
       <p className="site-fine">
-        Plans stay on your phone. Stays open on Booking.com and Airbnb. Tables open on Zomato.
+        Plans stay on your phone. Stays, tables, and the way there open in the site or app that books them.
       </p>
       <Film />
       <a className="site-down" href="#product">
@@ -373,6 +369,19 @@ function Compass() {
       <path d="M32 8l6 20-6 4-6-4 6-20z" />
       <path className="site-compass-south" d="M32 56l-6-20 6-4 6 4-6 20z" />
     </svg>
+  );
+}
+
+function PillStars() {
+  return (
+    <span className="site-pill-stars" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }
 
@@ -667,12 +676,10 @@ function Close() {
       <h2>Say where you want to be.</h2>
       <p>A beach week, a city you have saved for years, or dinner in a place you already know.</p>
       <div className="site-cta-row">
-        <Link to="/try" className="site-cta">
-          <span>Try Safar</span>
+        <a className="site-cta site-pill-live" href={PLAY_STORE_URL}>
+          <PillStars />
+          <span>Get the app</span>
           <Plane />
-        </Link>
-        <a className="site-cta site-cta-ghost" href={PLAY_STORE_URL}>
-          Get the app
         </a>
       </div>
     </section>
@@ -690,7 +697,6 @@ function Footer() {
         <p>Product</p>
         <a href="#product">A conversation</a>
         <a href="#pocket">Before you go</a>
-        <Link to="/try">Try Safar</Link>
         <a href={PLAY_STORE_URL}>Get the app</a>
       </div>
       <div>
