@@ -60,30 +60,65 @@ function insideIndia(lat, lng) {
 }
 
 async function countryCode(lat, lng) {
-  const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}&localityLanguage=en`;
-  const http = window.Capacitor?.Plugins?.CapacitorHttp;
-  let data = null;
-  if (http?.get) {
-    const result = await http.get({ url });
-    if (result.status >= 200 && result.status < 300) {
-      data = typeof result.data === "string" ? JSON.parse(result.data) : result.data;
+  try {
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lng)}&localityLanguage=en`;
+    const http = window.Capacitor?.Plugins?.CapacitorHttp;
+    let data = null;
+    if (http?.get) {
+      const result = await http.get({ url });
+      if (result.status >= 200 && result.status < 300) {
+        data = typeof result.data === "string" ? JSON.parse(result.data) : result.data;
+      }
+    } else {
+      const res = await fetch(url);
+      if (res.ok) data = await res.json();
     }
-  } else {
-    const res = await fetch(url);
-    if (res.ok) data = await res.json();
+    const code = String(data?.countryCode || "").toUpperCase();
+    if (code) return code === "IN" ? "IN" : "OTHER";
+  } catch {
+    // The phone's coordinates still decide India when the country lookup fails.
   }
-  const code = String(data?.countryCode || "").toUpperCase();
-  if (code) return code === "IN" ? "IN" : "OTHER";
   return insideIndia(lat, lng) ? "IN" : "OTHER";
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitUntilVisible() {
+  const app = window.Capacitor?.Plugins?.App;
+  try {
+    const state = await app?.getState?.();
+    if (state?.isActive) {
+      await delay(700);
+      return;
+    }
+  } catch {
+    // The prompt still waits below so it is not covered by the splash screen.
+  }
+  await delay(900);
+}
+
+async function nativeGeo() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const geo = window.Capacitor?.Plugins?.Geolocation;
+    if (geo?.getCurrentPosition) return geo;
+    if (!window.Capacitor?.isNativePlatform?.()) return null;
+    await delay(150);
+  }
+  return null;
+}
+
 async function readPosition() {
-  const geo = window.Capacitor?.Plugins?.Geolocation;
+  const geo = await nativeGeo();
   if (geo?.getCurrentPosition) {
-    const perm = await geo.requestPermissions?.();
-    const granted = !perm || perm.location === "granted" || perm.coarseLocation === "granted";
-    if (!granted) throw new Error("Location was not allowed.");
-    return geo.getCurrentPosition({ enableHighAccuracy: false, timeout: 12000 });
+    await waitUntilVisible();
+    try {
+      await geo.requestPermissions({ permissions: ["location"] });
+    } catch {
+      // getCurrentPosition shows the same system prompt if that call was skipped.
+    }
+    return geo.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 });
   }
   if (!navigator.geolocation) throw new Error("This phone cannot share location.");
   return new Promise((resolve, reject) => {

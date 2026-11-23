@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { PLAY_STORE_URL } from "../../lib/links.js";
 import "./site.css";
 
 const STEPS = [
@@ -166,8 +167,11 @@ function Header() {
           <Link to="/privacy">Privacy</Link>
         </nav>
         <div className="site-bar-actions">
-          <Link to="/welcome" className="site-pill">
-            Open Safar
+          <a className="site-pill site-pill-ghost" href={PLAY_STORE_URL}>
+            Get the app
+          </a>
+          <Link to="/try" className="site-pill">
+            Try Safar
           </Link>
           <button
             type="button"
@@ -192,14 +196,19 @@ function Header() {
           <Link to="/privacy" onClick={() => setOpen(false)}>
             Privacy
           </Link>
-          <Link to="/welcome" className="site-pill" onClick={() => setOpen(false)}>
-            Open Safar
+          <a className="site-pill site-pill-ghost" href={PLAY_STORE_URL} onClick={() => setOpen(false)}>
+            Get the app
+          </a>
+          <Link to="/try" className="site-pill" onClick={() => setOpen(false)}>
+            Try Safar
           </Link>
         </nav>
       ) : null}
     </header>
   );
 }
+
+const ASK = "Udaipur in December. Two of us. Rooftops, the lake, and one long lunch.";
 
 function Hero() {
   return (
@@ -216,13 +225,19 @@ function Hero() {
       <p className="site-lede">
         Ask for a city, a weekend, or a month away. Safar comes back with the days, a place to stay, where to eat, and what is worth the walk.
       </p>
-      <Link to="/welcome" className="site-cta">
-        <span>Open Safar</span>
-        <Plane />
-      </Link>
+      <div className="site-cta-row">
+        <Link to="/try" className="site-cta">
+          <span>Try Safar</span>
+          <Plane />
+        </Link>
+        <a className="site-cta site-cta-ghost" href={PLAY_STORE_URL}>
+          Get the app
+        </a>
+      </div>
       <p className="site-fine">
         Plans stay on your phone. Stays open on Booking.com and Airbnb. Tables open on Zomato.
       </p>
+      <Film />
       <a className="site-down" href="#product">
         <span>See a trip take shape</span>
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -230,6 +245,123 @@ function Hero() {
         </svg>
       </a>
     </section>
+  );
+}
+
+function Film() {
+  const [beat, setBeat] = useState(0);
+  const [typed, setTyped] = useState("");
+
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setBeat(6);
+      setTyped("");
+      return undefined;
+    }
+    let alive = true;
+    const wait = (ms) => new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
+    const play = async () => {
+      while (alive) {
+        setBeat(0);
+        setTyped("");
+        for (let i = 1; i <= ASK.length; i += 1) {
+          if (!alive) return;
+          setTyped(ASK.slice(0, i));
+          await wait(26);
+        }
+        if (!alive) return;
+        setBeat(1);
+        await wait(420);
+        if (!alive) return;
+        setTyped("");
+        setBeat(2);
+        await wait(900);
+        if (!alive) return;
+        setBeat(3);
+        await wait(1500);
+        if (!alive) return;
+        setBeat(4);
+        await wait(1500);
+        if (!alive) return;
+        setBeat(5);
+        await wait(1500);
+        if (!alive) return;
+        setBeat(6);
+        await wait(2200);
+      }
+    };
+    play();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return (
+    <div className="site-film" aria-hidden="true">
+      <div className="site-film-chrome">
+        <span />
+        <span />
+        <span />
+        <p>safarfoundation.com</p>
+      </div>
+      <div className="site-film-app">
+        <div className="site-film-bar">
+          <span>Safar</span>
+          <span>Udaipur · December</span>
+        </div>
+        <div className="site-film-thread">
+          {beat >= 1 ? (
+            <p className="site-film-you" key={`you-${beat < 2 ? "send" : "sent"}`}>{ASK}</p>
+          ) : null}
+          {beat === 2 ? (
+            <p className="site-film-typing" key="typing">
+              <i />
+              <i />
+              <i />
+            </p>
+          ) : null}
+          {beat >= 3 ? (
+            <p className="site-film-safar" key="reply">
+              <strong>Four nights, 12–16 December.</strong>
+              I’ll keep the days slow and the evenings on the water.
+            </p>
+          ) : null}
+          {beat >= 4 ? (
+            <ol className="site-film-days" key="days">
+              <li><span>Day 1</span> Arrive. A short walk once the bags are down.</li>
+              <li><span>Day 2</span> Lake Pichola as the light goes.</li>
+              <li><span>Day 3</span> A lunch that is allowed to take the afternoon.</li>
+            </ol>
+          ) : null}
+          {beat >= 5 ? (
+            <article className="site-film-card" key="stay">
+              <p>Safar’s note</p>
+              <h3>A haveli facing the lake</h3>
+              <span>Opens on Booking.com</span>
+            </article>
+          ) : null}
+          {beat >= 6 ? (
+            <article className="site-film-card" key="dinner">
+              <p>Tonight</p>
+              <h3>Rooftop thali, six minutes away</h3>
+              <span>Opens in Zomato · saved on this phone</span>
+            </article>
+          ) : null}
+        </div>
+        <div className="site-film-compose">
+          <p>{typed || (beat === 0 ? "" : "Ask for another day")}<i /></p>
+          <span>Send</span>
+        </div>
+        <div className={`site-film-cursor is-${beat}`}>
+          <svg viewBox="0 0 16 16">
+            <path d="M2 1.2 13.2 8.2 7.4 9.2 5.6 14.4Z" />
+          </svg>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -534,10 +666,15 @@ function Close() {
       <p className="site-kicker">Get started</p>
       <h2>Say where you want to be.</h2>
       <p>A beach week, a city you have saved for years, or dinner in a place you already know.</p>
-      <Link to="/welcome" className="site-cta">
-        <span>Open Safar</span>
-        <Plane />
-      </Link>
+      <div className="site-cta-row">
+        <Link to="/try" className="site-cta">
+          <span>Try Safar</span>
+          <Plane />
+        </Link>
+        <a className="site-cta site-cta-ghost" href={PLAY_STORE_URL}>
+          Get the app
+        </a>
+      </div>
     </section>
   );
 }
@@ -553,7 +690,8 @@ function Footer() {
         <p>Product</p>
         <a href="#product">A conversation</a>
         <a href="#pocket">Before you go</a>
-        <Link to="/welcome">Open Safar</Link>
+        <Link to="/try">Try Safar</Link>
+        <a href={PLAY_STORE_URL}>Get the app</a>
       </div>
       <div>
         <p>Legal</p>

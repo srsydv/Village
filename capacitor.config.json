@@ -5,7 +5,7 @@
   "server": {
     "androidScheme": "https",
     "hostname": "localhost",
-    "appStartPath": "/welcome"
+    "appStartPath": "/"
   },
   "android": {
     "allowMixedContent": false,

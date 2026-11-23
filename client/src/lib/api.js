@@ -120,20 +120,22 @@ export async function fetchAuthConfig() {
   return data;
 }
 
-export async function signInWithGoogleCredential(credential) {
+export async function signInWithGoogleCredential(credential, options = {}) {
   const profile = getProfile();
+  const body = {
+    credential,
+    chats: getChats(),
+    trips: getTrips(),
+    name: profile.name,
+    homeCity: profile.homeCity,
+    currency: profile.currency,
+    nationality: profile.nationality,
+  };
+  if (options.client === "web") body.client = "web";
   const res = await apiFetch("/api/auth/google", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      credential,
-      chats: getChats(),
-      trips: getTrips(),
-      name: profile.name,
-      homeCity: profile.homeCity,
-      currency: profile.currency,
-      nationality: profile.nationality,
-    }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Google sign-in failed.");

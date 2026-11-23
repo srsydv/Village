@@ -17,6 +17,7 @@ import { TripsScreen } from "./components/TripsScreen.jsx";
 import { useTravel } from "./lib/TravelContext.jsx";
 import { GeminiGate } from "./components/SubscribeScreen.jsx";
 import { Site } from "./components/site/Site.jsx";
+import { TrySafar } from "./components/site/TrySafar.jsx";
 
 export default function App() {
   const { ready, authChecked, account } = useTravel();
@@ -24,8 +25,9 @@ export default function App() {
   const isAdmin = Boolean(account?.isAdmin);
   const adminView = pathname.startsWith("/admin");
 
-  if (pathname === "/") {
+  if (pathname === "/" || pathname === "/try") {
     if (window.Capacitor?.isNativePlatform?.()) return <Navigate to="/welcome" replace />;
+    if (pathname === "/try") return <TrySafar />;
     return <Site />;
   }
 

@@ -36,6 +36,7 @@ function slimUser(row) {
     updatedAt: row.updatedAt,
     chatCount: row.chatCount || 0,
     tripCount: row.tripCount || 0,
+    joinedVia: row.joinedVia === "web" ? "web" : "app",
     lastAsk: lastAsk(row.lastChat),
     lastChatAt: row.lastChat?.updatedAt || null,
   };
@@ -131,6 +132,7 @@ router.get("/users/:id", async (req, res) => {
       currency: user.currency || "INR",
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      joinedVia: user.joinedVia === "web" ? "web" : "app",
       chats: Array.isArray(user.chats) ? user.chats : [],
       trips: Array.isArray(user.trips) ? user.trips : [],
     },
