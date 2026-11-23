@@ -81,9 +81,10 @@ export function publicUser(doc) {
   };
 }
 
-export async function upsertGoogleUser(google) {
+export async function upsertGoogleUser(google, joinedVia = "app") {
   const col = await usersCol();
   const now = new Date();
+  const via = joinedVia === "web" ? "web" : "app";
   const doc = await col.findOneAndUpdate(
     { googleId: google.googleId },
     {
@@ -100,6 +101,7 @@ export async function upsertGoogleUser(google) {
         nationality: "India",
         chats: [],
         trips: [],
+        joinedVia: via,
         createdAt: now,
       },
     },
@@ -139,6 +141,7 @@ export async function listUsersForAdmin(limit = 100) {
           currency: 1,
           createdAt: 1,
           updatedAt: 1,
+          joinedVia: 1,
           chatCount: { $size: { $ifNull: ["$chats", []] } },
           tripCount: { $size: { $ifNull: ["$trips", []] } },
           lastChat: { $arrayElemAt: ["$chats", 0] },

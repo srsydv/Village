@@ -68,6 +68,7 @@ export function SubscribeScreen() {
       <h1 className="serif mt-2 text-[2.2rem] leading-tight font-semibold">Plan and ask with Safar</h1>
       <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
         Outside India, a subscription covers trip plans and questions. The home screen stays open either way.
+        If you are in India, allow location when Android asks. Plan and Ask stay free there.
       </p>
       {!signedIn ? (
         <div className="mt-6">

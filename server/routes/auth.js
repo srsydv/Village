@@ -17,7 +17,8 @@ router.get("/config", (_req, res) => {
 
 router.post("/google", async (req, res) => {
   const google = await verifyGoogleCredential(req.body?.credential);
-  const user = await upsertGoogleUser(google);
+  const joinedVia = req.body?.client === "web" ? "web" : "app";
+  const user = await upsertGoogleUser(google, joinedVia);
   if (!user?.name && google.name) {
     await saveUserState(user._id, { name: google.name });
     user.name = google.name;
