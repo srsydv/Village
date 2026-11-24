@@ -51,6 +51,22 @@
 
 .web-google { min-height: 44px; margin-top: 22px; }
 .web-note, .web-empty { color: var(--soft); }
+.web-steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.web-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--soft);
+}
+.web-steps li span { width: 0.9rem; text-align: center; }
+.web-steps li.is-on { color: var(--ink); }
+.web-steps li.is-done { color: var(--gold); }
 .web-error { color: #8d3b32; }
 .web-quiet {
   margin-top: 18px;
@@ -476,6 +492,18 @@
   font-size: 0.78rem;
 }
 .web-fine { margin: 10px 0 0; color: var(--soft); font-size: 0.78rem; line-height: 1.45; }
+.web-extra { display: grid; gap: 6px; margin-top: 12px; color: var(--soft); font-size: 0.85rem; }
+.web-extra input {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: var(--ink);
+}
+.web-picked { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.web-picked span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 0.82rem; }
+.web-picked button { border: 0; background: transparent; color: var(--gold); cursor: pointer; padding: 0; }
 .web-stay-picks {
   display: grid;
   grid-template-columns: 1fr 1fr;

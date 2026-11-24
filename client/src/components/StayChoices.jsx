@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { STAY_PARTNERS } from "../lib/links.js";
 import { STAY_STANDARDS, staySearchUrl, toggleStay } from "../lib/stays.js";
 
 export function StayChoices({ selected, onToggle, destination, startDate, endDate, adults, showSearch = false }) {
@@ -41,6 +42,30 @@ export function StayChoices({ selected, onToggle, destination, startDate, endDat
           );
         })}
       </div>
+      {showSearch && destination ? (
+        <div className="mt-3 space-y-2">
+          {STAY_PARTNERS.map((partner) => (
+            <a
+              key={partner.id}
+              href={partner.href}
+              target="_blank"
+              rel="noreferrer"
+              className="flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-[var(--line)] px-3 py-2.5"
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{partner.name}</span>
+                <span className="mt-0.5 block text-[0.65rem] text-[var(--muted)]">
+                  Opens {partner.name}. Search {destination} there.
+                </span>
+              </span>
+              <span className="shrink-0 text-xs font-medium text-[var(--gold-bright)]">See stays</span>
+            </a>
+          ))}
+          <p className="text-[0.65rem] leading-relaxed text-[var(--muted)]">
+            Safar may earn a commission if you book through these links. The price you pay is the same.
+          </p>
+        </div>
+      ) : null}
       {showSearch && chosen.length > 0 && (
         <div className="mt-3 space-y-2">
           {chosen.map((item) => {

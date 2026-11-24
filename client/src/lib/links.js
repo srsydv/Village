@@ -1,5 +1,45 @@
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.safartravel.app";
 
+export const STAY_PARTNERS = [
+  {
+    id: "makemytrip",
+    name: "MakeMyTrip",
+    href: "https://track.vcommission.com/click?campaign_id=10156&pub_id=133956",
+  },
+  {
+    id: "goibibo",
+    name: "Goibibo",
+    href: "https://track.vcommission.com/click?campaign_id=10099&pub_id=133956",
+  },
+];
+
+const AMAZON_TAG = "safartravel-21";
+const AJIO_TRACKING = "https://track.vcommission.com/click?campaign_id=10364&pub_id=133956";
+
+export function amazonSearchUrl(query) {
+  const url = new URL("https://www.amazon.in/s");
+  url.searchParams.set("k", String(query || "").trim());
+  url.searchParams.set("tag", AMAZON_TAG);
+  return url.toString();
+}
+
+export function ajioSearchUrl(query) {
+  const destination = new URL("https://www.ajio.com/search/");
+  destination.searchParams.set("text", String(query || "").trim());
+  const tracked = new URL(AJIO_TRACKING);
+  tracked.searchParams.set("url", destination.toString());
+  return tracked.toString();
+}
+
+export function trackPartner(id, destination = "") {
+  const partner = STAY_PARTNERS.find((item) => item.id === id);
+  if (!partner) return destination;
+  if (!destination) return partner.href;
+  const tracked = new URL(partner.href);
+  tracked.searchParams.set("url", destination);
+  return tracked.toString();
+}
+
 export function placeLinks(place, city = "") {
   const where = `${place?.name || ""} ${city || place?.city || ""}`.trim();
   const q = encodeURIComponent(where);
@@ -10,6 +50,8 @@ export function placeLinks(place, city = "") {
   return {
     maps: `https://www.google.com/maps/search/?api=1&query=${geo}`,
     booking: `https://www.booking.com/searchresults.html?ss=${q}`,
+    makemytrip: STAY_PARTNERS[0].href,
+    goibibo: STAY_PARTNERS[1].href,
     airbnb: `https://www.airbnb.com/s/${encodeURIComponent(city || place?.city || place?.name || "")}/homes`,
     zomato: `https://www.zomato.com/search?q=${q}`,
     website: place?.website || "",

@@ -1,4 +1,5 @@
 import { formatDay } from "./dates.js";
+import { trackPartner } from "./links.js";
 
 export const TRANSPORT_MODES = [
   { id: "flight", label: "Flight", line: "Compare airlines" },
@@ -444,14 +445,20 @@ function flightPartners({ from, to, date, adults, india }) {
         name: "Goibibo",
         detail: searchLine,
         action: "See fare",
-        href: `https://www.goibibo.com/flights/${slug(fromLabel)}-${slug(toLabel)}-${origin.iata}-${dest.iata}-${yyyymmdd(date)}--${adults}-0-0-E-D/`,
+        href: trackPartner(
+          "goibibo",
+          `https://www.goibibo.com/flights/${slug(fromLabel)}-${slug(toLabel)}-${origin.iata}-${dest.iata}-${yyyymmdd(date)}--${adults}-0-0-E-D/`,
+        ),
       },
       {
         id: "makemytrip",
         name: "MakeMyTrip",
         detail: searchLine,
         action: "See fare",
-        href: `https://www.makemytrip.com/flight/search?itinerary=${origin.iata}-${dest.iata}-${day}&tripType=O&paxType=A-${adults}_C-0_I-0&intl=false&cabinClass=E&lang=eng`,
+        href: trackPartner(
+          "makemytrip",
+          `https://www.makemytrip.com/flight/search?itinerary=${origin.iata}-${dest.iata}-${day}&tripType=O&paxType=A-${adults}_C-0_I-0&intl=false&cabinClass=E&lang=eng`,
+        ),
       },
       {
         id: "cleartrip",
@@ -814,7 +821,7 @@ export function buildJourney(input) {
       picks,
       picking: id === "flight" && !Array.isArray(input?.flightPicks),
       impractical: id !== "flight" && Boolean(ride) && !ride.fareLow,
-      partners: id === "flight" ? [] : partners.map((item) => ({ ...item, primary: item === primary })),
+      partners: partners.map((item) => ({ ...item, primary: item === primary })),
     };
   });
 

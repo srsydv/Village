@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { askSafar, suggestFlights } from "../lib/api.js";
-import { ASK_IDEAS, readOffer } from "../lib/askOffers.js";
+import { ASK_IDEAS, readOffer, replySteps } from "../lib/askOffers.js";
 import { chatPreview, planSeedFromChat } from "../lib/chatHints.js";
 import { timeAgo, tomorrowIso } from "../lib/dates.js";
-import { placeLinks } from "../lib/links.js";
+import { placeLinks, STAY_PARTNERS } from "../lib/links.js";
 import { RichText } from "../lib/richtext.jsx";
 import { STAY_STANDARDS, staySearchUrl } from "../lib/stays.js";
-import { uid } from "../lib/storage.js";
+import { getChats, uid } from "../lib/storage.js";
 import { buildJourney } from "../lib/transport.js";
 import { useTravel } from "../lib/TravelContext.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
+import { AskSteps } from "./AskSteps.jsx";
+import { ProductFinder } from "./ProductFinder.jsx";
 
 export function ChatScreen() {
   const { profile, chats, addChat, removeChat } = useTravel();
@@ -35,7 +37,18 @@ export function ChatScreen() {
 
   const persist = (next, id = chatId) => {
     setMessages(next);
-    addChat({ id, updatedAt: Date.now(), messages: next });
+    const existing = getChats().find((item) => item.id === id) || {};
+    addChat({ ...existing, id, updatedAt: Date.now(), messages: next, shops: existing.shops });
+  };
+
+  const saveShop = (question, answers) => {
+    const existing = getChats().find((item) => item.id === chatId);
+    if (!existing || JSON.stringify(existing.shops?.[question]) === JSON.stringify(answers)) return;
+    addChat({
+      ...existing,
+      updatedAt: Date.now(),
+      shops: { ...(existing.shops || {}), [question]: answers },
+    });
   };
 
   const loadChat = (chat) => {
@@ -181,7 +194,9 @@ export function ChatScreen() {
         )}
 
         <div className="space-y-3 pb-4">
-          {messages.map((m, i) => (
+          {messages.map((m, i) => {
+            const question = [...messages.slice(0, i)].reverse().find((item) => item.role === "user")?.content || "";
+            return (
             <article
               key={`${m.role}-${i}`}
               className={
@@ -194,22 +209,21 @@ export function ChatScreen() {
                 m.content ? (
                   <>
                     <RichText text={m.content} />
-                    <ChatOffers
-                      question={[...messages.slice(0, i)].reverse().find((item) => item.role === "user")?.content || ""}
-                      profile={profile}
-                      live={i === messages.length - 1}
-                    />
+                    <ChatOffers question={question} profile={profile} live={i === messages.length - 1} />
+                    <ProductFinder question={question} saved={chats.find((item) => item.id === chatId)?.shops?.[question]} onSave={(answers) => saveShop(question, answers)} />
                   </>
                 ) : (
-                  <p className="typing text-[var(--gold-bright)]">
-                    <span>●</span> <span>●</span> <span>●</span>
-                  </p>
+                  <AskSteps
+                    variant="app"
+                    steps={replySteps(question)}
+                  />
                 )
               ) : (
                 m.content
               )}
             </article>
-          ))}
+            );
+          })}
         </div>
         {seed && (
           <button
@@ -352,7 +366,7 @@ function ChatOffers({ question, profile, live }) {
   }, [live, flight, offer?.from, offer?.to, profile?.currency]);
 
   if (!offer) return null;
-  const board = offer.from && offer.to && offer.modes.length
+  const board = offer?.from && offer.to && offer.modes.length
     ? buildJourney({
         from: offer.from,
         to: offer.to,
@@ -365,9 +379,9 @@ function ChatOffers({ question, profile, live }) {
         profile,
       })
     : null;
-  const stays = STAY_STANDARDS.filter((item) => offer.stayIds.includes(item.id));
-  const food = offer.foodCity ? placeLinks({ name: offer.foodCity }, offer.foodCity) : null;
-  const sights = offer.sightCity
+  const stays = offer ? STAY_STANDARDS.filter((item) => offer.stayIds.includes(item.id)) : [];
+  const food = offer?.foodCity ? placeLinks({ name: offer.foodCity }, offer.foodCity) : null;
+  const sights = offer?.sightCity
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`things to do in ${offer.sightCity}`)}`
     : "";
   const flightSearch = board
@@ -376,10 +390,15 @@ function ChatOffers({ question, profile, live }) {
 
   return (
     <div className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">
-      <p className="kicker">Book</p>
+      <p className="kicker">{offer ? "Book" : "Buy"}</p>
       {note ? <p className="text-xs text-[var(--muted)]">{note}</p> : null}
-      {board?.options.map((option) => {
-        const primary = option.partners?.find((item) => item.primary) || option.partners?.[0];
+      {offer && board?.options.map((option) => {
+        const partners = option.partners || [];
+        const featured = ["makemytrip", "goibibo"]
+          .map((id) => partners.find((item) => item.id === id))
+          .filter(Boolean);
+        const primary = partners.find((item) => item.primary) || partners[0];
+        const rest = partners.filter((item) => item !== primary && !featured.includes(item));
         const href = primary?.href || (option.id === "flight" ? flightSearch : "");
         return (
           <div key={option.id} className="rounded-2xl border border-[var(--line)] px-3 py-2.5">
@@ -387,6 +406,17 @@ function ChatOffers({ question, profile, live }) {
               <p className="text-sm font-medium">{option.label}</p>
               {option.price ? <p className="text-xs text-[var(--gold-bright)]">{option.price}</p> : null}
             </div>
+            {featured.map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block text-xs font-medium text-[var(--gold-bright)]"
+              >
+                {item.name}
+              </a>
+            ))}
             {option.picks?.length ? (
               <div className="mt-2 space-y-1.5">
                 {option.picks.map((pick) => (
@@ -402,15 +432,37 @@ function ChatOffers({ question, profile, live }) {
                   </a>
                 ))}
               </div>
-            ) : href ? (
+            ) : href && !featured.includes(primary) ? (
               <a href={href} target="_blank" rel="noreferrer" className="mt-2 block text-xs font-medium text-[var(--gold-bright)]">
                 {primary?.action || "See flights"}
               </a>
             ) : null}
+            {rest.map((item) => (
+              <a
+                key={item.id || item.name}
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 block text-xs font-medium text-[var(--gold-bright)]"
+              >
+                {item.name}
+              </a>
+            ))}
           </div>
         );
       })}
-      {stays.map((item) => {
+      {offer?.stayCity
+        ? STAY_PARTNERS.map((partner) => (
+            <OfferLink
+              key={partner.id}
+              href={partner.href}
+              title={partner.name}
+              detail={`Opens ${partner.name}. Search ${offer.stayCity} there.`}
+              action="See stays"
+            />
+          ))
+        : null}
+      {offer ? stays.map((item) => {
         const href = staySearchUrl({ id: item.id, destination: offer.stayCity, startDate: tomorrowIso(), adults: 1 });
         if (!href) return null;
         return (
@@ -422,7 +474,7 @@ function ChatOffers({ question, profile, live }) {
             <span className="shrink-0 text-xs text-[var(--gold-bright)]">See stays</span>
           </a>
         );
-      })}
+      }) : null}
       {food ? (
         <>
           <OfferLink href={food.zomato} title="Restaurants" detail={`Food in ${offer.foodCity}`} action="See on Zomato" />

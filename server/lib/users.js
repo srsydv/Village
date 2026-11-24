@@ -8,18 +8,36 @@ function clip(value, max) {
   return String(value || "").slice(0, max);
 }
 
+function capShops(shops) {
+  if (!shops || typeof shops !== "object") return undefined;
+  const next = {};
+  for (const [key, value] of Object.entries(shops).slice(0, 8)) {
+    if (!value || typeof value !== "object") continue;
+    const row = {};
+    for (const field of ["size", "style", "budget", "feature", "note"]) {
+      if (value[field]) row[field] = clip(value[field], 80);
+    }
+    if (Object.keys(row).length) next[clip(key, 180)] = row;
+  }
+  return Object.keys(next).length ? next : undefined;
+}
+
 function capChats(chats) {
   if (!Array.isArray(chats)) return [];
-  return chats.slice(0, 24).map((chat) => ({
-    id: clip(chat?.id, 40),
-    updatedAt: Number(chat?.updatedAt) || Date.now(),
-    messages: Array.isArray(chat?.messages)
-      ? chat.messages.slice(-16).map((m) => ({
-          role: m?.role === "assistant" ? "assistant" : "user",
-          content: clip(m?.content, 8000),
-        }))
-      : [],
-  }));
+  return chats.slice(0, 24).map((chat) => {
+    const shops = capShops(chat?.shops);
+    return {
+      id: clip(chat?.id, 40),
+      updatedAt: Number(chat?.updatedAt) || Date.now(),
+      ...(shops ? { shops } : {}),
+      messages: Array.isArray(chat?.messages)
+        ? chat.messages.slice(-16).map((m) => ({
+            role: m?.role === "assistant" ? "assistant" : "user",
+            content: clip(m?.content, 8000),
+          }))
+        : [],
+    };
+  });
 }
 
 function capTrips(trips) {

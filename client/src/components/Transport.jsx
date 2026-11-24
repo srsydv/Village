@@ -65,7 +65,10 @@ export function TransportBoard({ board }) {
 function FareCard({ option }) {
   const [open, setOpen] = useState(false);
   const primary = option.partners.find((item) => item.primary) || option.partners[0];
-  const rest = option.partners.filter((item) => item !== primary);
+  const featured = ["makemytrip", "goibibo"]
+    .map((id) => option.partners.find((item) => item.id === id))
+    .filter(Boolean);
+  const rest = option.partners.filter((item) => item !== primary && !featured.includes(item));
   const compare = option.id === "flight";
   if (option.impractical) {
     return (
@@ -150,6 +153,32 @@ function FareCard({ option }) {
       {compare && !option.picking && !option.picks?.length ? (
         <p className="mt-3 text-sm text-[var(--muted)]">No flight stood out for this date.</p>
       ) : null}
+      {compare && !option.picks?.length ? (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {featured.map((item) => (
+            <a
+              key={item.id}
+              href={item.href}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.65rem] text-[var(--gold-bright)]"
+            >
+              {item.name}
+            </a>
+          ))}
+          {rest.map((item) => (
+            <a
+              key={item.id}
+              href={item.href}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.65rem] text-[var(--gold-bright)]"
+            >
+              {item.name}
+            </a>
+          ))}
+        </div>
+      ) : null}
       {compare && option.picks?.length > 0 ? (
         <div className="mt-4 space-y-2">
           {option.picks.map((pick) => (
@@ -177,6 +206,30 @@ function FareCard({ option }) {
             </a>
           ))}
           <p className="text-xs leading-relaxed text-[var(--muted)]">Typical totals for this date. Open a flight to see today’s fare and bags.</p>
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
+            {featured.map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.65rem] text-[var(--gold-bright)]"
+              >
+                {item.name}
+              </a>
+            ))}
+            {rest.map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full border border-[var(--line)] px-2.5 py-1 text-[0.65rem] text-[var(--gold-bright)]"
+              >
+                {item.name}
+              </a>
+            ))}
+          </div>
         </div>
       ) : compare ? null : (
         <>

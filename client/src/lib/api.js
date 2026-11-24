@@ -90,6 +90,15 @@ function activityHeaders() {
   };
 }
 
+export async function searchShop({ query, budget }) {
+  const params = new URLSearchParams({ q: query || "" });
+  if (budget) params.set("budget", budget);
+  const res = await apiFetch(`/api/shop?${params.toString()}`, { headers: activityHeaders() });
+  const data = await res.json();
+  if (!res.ok) return [];
+  return Array.isArray(data.products) ? data.products : [];
+}
+
 export async function fetchBillingStatus() {
   const res = await apiFetch("/api/billing/status", { headers: activityHeaders() });
   const data = await res.json();
