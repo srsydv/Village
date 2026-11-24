@@ -12,16 +12,18 @@ import {
   suggestFlights,
   suggestPlaces,
 } from "../../lib/api.js";
-import { ASK_IDEAS, readOffer } from "../../lib/askOffers.js";
+import { ASK_IDEAS, readOffer, replySteps } from "../../lib/askOffers.js";
 import { formatTripSpan, tomorrowIso, travelerLine, tripEndIso } from "../../lib/dates.js";
-import { placeLinks, PLAY_STORE_URL } from "../../lib/links.js";
+import { placeLinks, PLAY_STORE_URL, STAY_PARTNERS } from "../../lib/links.js";
 import { CURRENCY_OPTIONS, PASSPORT_OPTIONS } from "../../lib/profileOptions.js";
 import { RichText } from "../../lib/richtext.jsx";
 import { budgetLabel } from "../../lib/styleBudget.js";
 import { STAY_STANDARDS, staySearchUrl, toggleStay } from "../../lib/stays.js";
-import { uid } from "../../lib/storage.js";
+import { getChats, uid } from "../../lib/storage.js";
 import { buildJourney, TRANSPORT_MODES } from "../../lib/transport.js";
 import { useTravel } from "../../lib/TravelContext.jsx";
+import { AskSteps } from "../AskSteps.jsx";
+import { ProductFinder } from "../ProductFinder.jsx";
 import "./try.css";
 
 export function TrySafar() {
@@ -284,17 +286,21 @@ function Desk({ travel }) {
     const id = chatId || uid();
     const next = [...messages, { role: "user", content }];
     setChatId(id);
-    addChat({ id, updatedAt: Date.now(), messages: next });
+    const writeChat = (thread) => {
+      const existing = getChats().find((item) => item.id === id) || {};
+      addChat({ ...existing, id, updatedAt: Date.now(), messages: thread, shops: existing.shops });
+    };
+    writeChat(next);
     setBusy(true);
     try {
       const full = await askSafar({
         messages: next,
         profile,
         onDelta: (_delta, all) => {
-          addChat({ id, updatedAt: Date.now(), messages: [...next, { role: "assistant", content: all }] });
+          writeChat([...next, { role: "assistant", content: all }]);
         },
       });
-      addChat({ id, updatedAt: Date.now(), messages: [...next, { role: "assistant", content: full }] });
+      writeChat([...next, { role: "assistant", content: full }]);
     } catch (err) {
       setError(err.message || "Safar could not reply.");
     } finally {
@@ -359,6 +365,17 @@ function Desk({ travel }) {
         {section === "ask" ? (
           <Ask
             messages={messages}
+            shops={chat?.shops || {}}
+            onShop={(question, answers) => {
+              if (!chatId) return;
+              const existing = getChats().find((item) => item.id === chatId);
+              if (!existing || JSON.stringify(existing.shops?.[question]) === JSON.stringify(answers)) return;
+              addChat({
+                ...existing,
+                updatedAt: Date.now(),
+                shops: { ...(existing.shops || {}), [question]: answers },
+              });
+            }}
             busy={busy}
             error={error}
             draft={draft}
@@ -385,7 +402,7 @@ function Desk({ travel }) {
   );
 }
 
-function Ask({ messages, busy, error, draft, setDraft, onSend, threadRef, profile }) {
+function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSend, threadRef, profile }) {
   const [ideaSet, setIdeaSet] = useState(0);
   const empty = messages.length === 0;
   const compose = (
@@ -434,23 +451,26 @@ function Ask({ messages, busy, error, draft, setDraft, onSend, threadRef, profil
             </button>
           </div>
         ) : (
-          messages.map((message, index) =>
-            message.role === "user" ? (
+          messages.map((message, index) => {
+            const question = [...messages.slice(0, index)].reverse().find((item) => item.role === "user")?.content || "";
+            return message.role === "user" ? (
               <p key={`${index}-you`} className="web-you">
                 {message.content}
               </p>
             ) : (
               <div key={`${index}-safar`} className="web-safar">
                 <RichText text={message.content} />
-                <AskOffers
-                  question={[...messages.slice(0, index)].reverse().find((item) => item.role === "user")?.content || ""}
-                  profile={profile}
-                />
+                <AskOffers question={question} profile={profile} />
+                <ProductFinder variant="web" question={question} saved={shops[question]} onSave={(answers) => onShop?.(question, answers)} />
               </div>
-            ),
-          )
+            );
+          })
         )}
-        {busy ? <p className="web-note">Safar is writing…</p> : null}
+        {busy ? (
+          <AskSteps
+            steps={replySteps([...messages].reverse().find((item) => item.role === "user")?.content || "")}
+          />
+        ) : null}
         {error ? <p className="web-error">{error}</p> : null}
       </div>
       {empty ? null : compose}
@@ -492,7 +512,7 @@ function AskOffers({ question, profile }) {
   }, [flight, offer?.from, offer?.to, profile?.currency]);
 
   if (!offer) return null;
-  const board = offer.from && offer.to && offer.modes.length
+  const board = offer?.from && offer.to && offer.modes.length
     ? buildJourney({
         from: offer.from,
         to: offer.to,
@@ -505,15 +525,15 @@ function AskOffers({ question, profile }) {
         profile,
       })
     : null;
-  const stays = STAY_STANDARDS.filter((item) => offer.stayIds.includes(item.id));
-  const food = offer.foodCity ? placeLinks({ name: offer.foodCity }, offer.foodCity) : null;
-  const sights = offer.sightCity
+  const stays = offer ? STAY_STANDARDS.filter((item) => offer.stayIds.includes(item.id)) : [];
+  const food = offer?.foodCity ? placeLinks({ name: offer.foodCity }, offer.foodCity) : null;
+  const sights = offer?.sightCity
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`things to do in ${offer.sightCity}`)}`
     : "";
 
   return (
     <div className="web-offers">
-      <p className="web-kicker">Book</p>
+      <p className="web-kicker">{offer ? "Book" : "Buy"}</p>
       {note ? <p className="web-note">{note}</p> : null}
       {board
         ? board.options.map((option) => (
@@ -526,6 +546,17 @@ function AskOffers({ question, profile }) {
                   : ""
               }
             />
+          ))
+        : null}
+      {offer?.stayCity
+        ? STAY_PARTNERS.map((partner) => (
+            <a key={partner.id} className="web-stay-link" href={partner.href} target="_blank" rel="noreferrer">
+              <span>
+                <strong>{partner.name}</strong>
+                <small>Opens {partner.name}. Search {offer.stayCity} there.</small>
+              </span>
+              <em>See stays</em>
+            </a>
           ))
         : null}
       {stays.map((item) => {
@@ -1046,8 +1077,18 @@ function TripView({ trip, profile, onUpdate }) {
             );
           })}
         </div>
-        {stays.length ? (
+        {to ? (
           <div className="web-stay-links">
+            {STAY_PARTNERS.map((partner) => (
+              <a key={partner.id} className="web-stay-link" href={partner.href} target="_blank" rel="noreferrer">
+                <span>
+                  <strong>{partner.name}</strong>
+                  <small>Opens {partner.name}. Search {to} there.</small>
+                </span>
+                <em>See stays</em>
+              </a>
+            ))}
+            <p className="web-span">Safar may earn a commission if you book through these links. The price you pay is the same.</p>
             {stays.map((item) => {
               const href = staySearchUrl({
                 id: item.id,
@@ -1107,8 +1148,12 @@ function TripView({ trip, profile, onUpdate }) {
 }
 
 function FareCard({ option, fallbackHref = "" }) {
-  const primary = option.partners?.find((item) => item.primary) || option.partners?.[0];
-  const rest = (option.partners || []).filter((item) => item !== primary);
+  const partners = option.partners || [];
+  const featured = ["makemytrip", "goibibo"]
+    .map((id) => partners.find((item) => item.id === id))
+    .filter(Boolean);
+  const primary = partners.find((item) => item.primary) || partners[0];
+  const rest = partners.filter((item) => item !== primary && !featured.includes(item));
   return (
     <article className={option.recommended ? "web-fare is-best" : "web-fare"}>
       <div className="web-fare-top">
@@ -1136,11 +1181,20 @@ function FareCard({ option, fallbackHref = "" }) {
         </div>
       ) : null}
       {option.hint && option.id !== "flight" ? <p className="web-fine">{option.hint}</p> : null}
-      {primary?.href ? (
+      {featured.map((item) => (
+        <a key={item.id} className="web-stay-link" href={item.href} target="_blank" rel="noreferrer">
+          <span>
+            <strong>{item.name}</strong>
+            <small>{item.detail || item.action}</small>
+          </span>
+          <em>{item.action || "Open"}</em>
+        </a>
+      ))}
+      {primary?.href && !featured.includes(primary) ? (
         <a className="web-book" href={primary.href} target="_blank" rel="noreferrer">
           {primary.action || `See ${option.label.toLowerCase()}`}
         </a>
-      ) : fallbackHref ? (
+      ) : !primary?.href && fallbackHref ? (
         <a className="web-book" href={fallbackHref} target="_blank" rel="noreferrer">
           See flights
         </a>

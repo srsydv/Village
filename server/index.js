@@ -11,6 +11,7 @@ import authRouter from "./routes/auth.js";
 import sharesRouter from "./routes/shares.js";
 import adminRouter from "./routes/admin.js";
 import billingRouter from "./routes/billing.js";
+import shopRouter from "./routes/shop.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT_DIR, ".env") });
@@ -92,6 +93,7 @@ app.use("/api/admin", adminRouter);
 app.use(activityRouter);
 app.use("/api/travel", travelRouter);
 app.use("/api/places", placesRouter);
+app.use("/api/shop", shopRouter);
 
 app.use((err, _req, res, next) => {
   if (res.headersSent) return next(err);

@@ -72,9 +72,9 @@ export function PrivacyPolicy() {
             </li>
           </ul>
           <p className="mt-2">
-            Booking.com, Airbnb, Zomato, and Google Maps open in the browser when you tap Book or Maps. Those sites
-            have their own policies. Safar does not take hotel payments. Safar may earn a commission if you book through
-            these links. The price you pay is the same.
+            MakeMyTrip, Goibibo, Ajio, Amazon, Booking.com, Airbnb, Zomato, and Google Maps open in the browser when you tap through.
+            Those sites have their own policies. Safar does not take hotel payments. Safar may earn a commission if you
+            book through these links. The price you pay is the same.
           </p>
         </section>
         <section>

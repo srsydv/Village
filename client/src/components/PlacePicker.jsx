@@ -33,7 +33,7 @@ export function PlacePicker({ catalog, picks, onToggle, tab, onTab }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-[var(--muted)]">
-        {tab === "stays" && "Tap one stay. Book opens Booking.com — live price there, estimate in the plan."}
+        {tab === "stays" && "Tap one stay. MakeMyTrip and Goibibo open the live price. You pay on their site."}
         {tab === "food" && "Pick up to 5 places. Maps / Zomato open the listing."}
         {tab === "sights" && "Pick up to 6 sights to pin on your trip."}
       </p>
@@ -56,8 +56,9 @@ export function PlacePicker({ catalog, picks, onToggle, tab, onTab }) {
         )}
       </div>
       <p className="mt-3 text-[0.65rem] leading-relaxed text-[var(--muted)]">
-        Map data © OpenStreetMap contributors (ODbL). Weather: Open-Meteo. Live hotel prices are on Booking / Airbnb, not
-        in this list.
+        Map data © OpenStreetMap contributors (ODbL). Weather: Open-Meteo. Live hotel prices are on MakeMyTrip, Goibibo,
+        Booking, and Airbnb, not in this list. Safar may earn a commission if you book through these links. The price
+        you pay is the same.
       </p>
     </div>
   );
@@ -96,7 +97,9 @@ export function PlaceCard({ place, city, selected, onToggle, visited, onVisited,
       </button>
       <div className="mt-2.5 flex flex-wrap gap-1.5 pl-8">
         <OutLink href={links.maps}>Maps</OutLink>
-        {place.kind === "stay" && <OutLink href={links.booking}>Book stay</OutLink>}
+        {place.kind === "stay" && <OutLink href={links.makemytrip}>MakeMyTrip</OutLink>}
+        {place.kind === "stay" && <OutLink href={links.goibibo}>Goibibo</OutLink>}
+        {place.kind === "stay" && <OutLink href={links.booking}>Booking</OutLink>}
         {place.kind === "stay" && <OutLink href={links.airbnb}>Airbnb</OutLink>}
         {place.kind === "food" && <OutLink href={links.zomato}>Zomato</OutLink>}
         {place.website ? <OutLink href={place.website.startsWith("http") ? place.website : `https://${place.website}`}>Site</OutLink> : null}

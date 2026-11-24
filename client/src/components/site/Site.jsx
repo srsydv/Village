@@ -10,6 +10,11 @@ const STEPS = [
     body: "A city, a month, who is coming, and what the days should feel like. Safar names the trip and answers in plain words.",
   },
   {
+    kicker: "Buy",
+    title: "Ask for the thing, then answer a few choices.",
+    body: "A shirt, a bag, a pair of shoes. Safar asks size, style, and budget, then opens two or three products that match. You pay on Amazon.",
+  },
+  {
     kicker: "The days",
     title: "A plan with room to wander.",
     body: "Four days, in order, with the long lunch left open. You can change a day without starting over.",
@@ -155,7 +160,7 @@ function Header() {
     <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
       <div className="site-announcement">
         <span>New</span>
-        <a href="#product">Safar is on the web</a>
+        <a href="#product">Ask Safar what to buy</a>
       </div>
       <div className="site-bar">
         <Link to="/" className="site-mark" aria-label="Safar, home">
@@ -207,6 +212,12 @@ function Header() {
 }
 
 const ASK = "Udaipur in December. Two of us. Rooftops, the lake, and one long lunch.";
+const BUY = "A full sleeve 100% cotton t-shirt";
+const BUY_PRODUCTS = [
+  ["Aventura full sleeve, 100% cotton", "4.4 stars · ₹499"],
+  ["Combed cotton plain long sleeve", "4.1 stars · ₹455"],
+  ["Round neck plain full sleeve", "4.3 stars · ₹375"],
+];
 
 function Hero() {
   return (
@@ -221,7 +232,7 @@ function Hero() {
         </span>
       </h1>
       <p className="site-lede">
-        Ask for a city, a weekend, or a month away. Safar comes back with the days, a place to stay, where to eat, and what is worth the walk.
+        Ask for a city, a weekend, or a month away. Or ask for a shirt to pack. Safar asks a few choices, then opens the days, the stay, and the products that match.
       </p>
       <div className="site-cta-row">
         <a className="site-cta site-pill-live" href={PLAY_STORE_URL}>
@@ -245,13 +256,17 @@ function Hero() {
 }
 
 function Film() {
+  const [act, setAct] = useState("trip");
   const [beat, setBeat] = useState(0);
   const [typed, setTyped] = useState("");
+  const [picked, setPicked] = useState("");
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
-      setBeat(6);
+      setAct("buy");
+      setBeat(4);
+      setPicked("Plain crew neck");
       setTyped("");
       return undefined;
     }
@@ -259,15 +274,20 @@ function Film() {
     const wait = (ms) => new Promise((resolve) => {
       window.setTimeout(resolve, ms);
     });
+    const typeLine = async (line) => {
+      setTyped("");
+      for (let i = 1; i <= line.length; i += 1) {
+        if (!alive) return;
+        setTyped(line.slice(0, i));
+        await wait(26);
+      }
+    };
     const play = async () => {
       while (alive) {
+        setAct("trip");
+        setPicked("");
         setBeat(0);
-        setTyped("");
-        for (let i = 1; i <= ASK.length; i += 1) {
-          if (!alive) return;
-          setTyped(ASK.slice(0, i));
-          await wait(26);
-        }
+        await typeLine(ASK);
         if (!alive) return;
         setBeat(1);
         await wait(420);
@@ -277,16 +297,41 @@ function Film() {
         await wait(900);
         if (!alive) return;
         setBeat(3);
-        await wait(1500);
+        await wait(1200);
         if (!alive) return;
         setBeat(4);
-        await wait(1500);
+        await wait(1200);
         if (!alive) return;
         setBeat(5);
-        await wait(1500);
+        await wait(1200);
         if (!alive) return;
         setBeat(6);
-        await wait(2200);
+        await wait(1600);
+        if (!alive) return;
+        setAct("buy");
+        setBeat(0);
+        setPicked("");
+        await typeLine(BUY);
+        if (!alive) return;
+        setBeat(1);
+        await wait(500);
+        if (!alive) return;
+        setTyped("");
+        setBeat(2);
+        await wait(700);
+        if (!alive) return;
+        setPicked("L");
+        await wait(900);
+        if (!alive) return;
+        setBeat(3);
+        setPicked("");
+        await wait(700);
+        if (!alive) return;
+        setPicked("Plain crew neck");
+        await wait(900);
+        if (!alive) return;
+        setBeat(4);
+        await wait(2600);
       }
     };
     play();
@@ -303,52 +348,76 @@ function Film() {
         <span />
         <p>safarfoundation.com</p>
       </div>
-      <div className="site-film-app">
+      <div className={act === "buy" ? "site-film-app is-buy" : "site-film-app"}>
         <div className="site-film-bar">
           <span>Safar</span>
-          <span>Udaipur · December</span>
+          <span>{act === "buy" ? "Buy" : "Udaipur · December"}</span>
         </div>
         <div className="site-film-thread">
-          {beat >= 1 ? (
+          {act === "trip" && beat >= 1 ? (
             <p className="site-film-you" key={`you-${beat < 2 ? "send" : "sent"}`}>{ASK}</p>
           ) : null}
-          {beat === 2 ? (
+          {act === "trip" && beat === 2 ? (
             <p className="site-film-typing" key="typing">
               <i />
               <i />
               <i />
             </p>
           ) : null}
-          {beat >= 3 ? (
+          {act === "trip" && beat >= 3 ? (
             <p className="site-film-safar" key="reply">
               <strong>Four nights, 12–16 December.</strong>
               I’ll keep the days slow and the evenings on the water.
             </p>
           ) : null}
-          {beat >= 4 ? (
+          {act === "trip" && beat >= 4 ? (
             <ol className="site-film-days" key="days">
               <li><span>Day 1</span> Arrive. A short walk once the bags are down.</li>
               <li><span>Day 2</span> Lake Pichola as the light goes.</li>
               <li><span>Day 3</span> A lunch that is allowed to take the afternoon.</li>
             </ol>
           ) : null}
-          {beat >= 5 ? (
+          {act === "trip" && beat >= 5 ? (
             <article className="site-film-card" key="stay">
               <p>Safar’s note</p>
               <h3>A haveli facing the lake</h3>
               <span>Opens on Booking.com</span>
             </article>
           ) : null}
-          {beat >= 6 ? (
+          {act === "trip" && beat >= 6 ? (
             <article className="site-film-card" key="dinner">
               <p>Tonight</p>
               <h3>Rooftop thali, six minutes away</h3>
               <span>Opens in Zomato · saved on this phone</span>
             </article>
           ) : null}
+          {act === "buy" && beat >= 1 ? (
+            <p className="site-film-you" key="buy-you">{BUY}</p>
+          ) : null}
+          {act === "buy" && beat >= 2 && beat < 4 ? (
+            <div className="site-film-ask" key={`ask-${beat}`}>
+              <p>{beat === 2 ? "What size?" : "Which style?"}</p>
+              <div className="site-film-picks">
+                {(beat === 2 ? ["S", "M", "L", "XL"] : ["Plain crew neck", "V-neck", "Polo"]).map((option) => (
+                  <span key={option} className={picked === option ? "is-on" : ""}>{option}</span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {act === "buy" && beat >= 4
+            ? BUY_PRODUCTS.map(([name, detail]) => (
+              <article className="site-film-buy" key={name}>
+                <div>
+                  <strong>{name}</strong>
+                  <small>{detail}</small>
+                </div>
+                <em>Open</em>
+              </article>
+            ))
+            : null}
         </div>
         <div className="site-film-compose">
-          <p>{typed || (beat === 0 ? "" : "Ask for another day")}<i /></p>
+          <p>{typed || (beat === 0 ? "" : act === "buy" ? "Anything else? Optional" : "Ask for another day")}<i /></p>
           <span>Send</span>
         </div>
         <div className={`site-film-cursor is-${beat}`}>
@@ -491,7 +560,7 @@ function Theater() {
         <div className="site-frame" aria-live="polite">
           <div className="site-frame-bar">
             <span>Safar</span>
-            <span>Udaipur · December</span>
+            <span>{active === 1 ? "Buy" : "Udaipur · December"}</span>
           </div>
           <Scene index={active} />
         </div>
@@ -501,11 +570,39 @@ function Theater() {
 }
 
 function Scene({ index }) {
-  if (index === 1) return <DaysScene />;
-  if (index === 2) return <StayScene />;
-  if (index === 3) return <DinnerScene />;
-  if (index === 4) return <SavedScene />;
+  if (index === 1) return <BuyScene />;
+  if (index === 2) return <DaysScene />;
+  if (index === 3) return <StayScene />;
+  if (index === 4) return <DinnerScene />;
+  if (index === 5) return <SavedScene />;
   return <AskScene />;
+}
+
+function BuyScene() {
+  return (
+    <div className="site-scene" key="buy">
+      <div className="site-bubble site-bubble-you">A full sleeve 100% cotton t-shirt</div>
+      <p className="site-scene-label">What size?</p>
+      <div className="site-picks">
+        <span>S</span>
+        <span>M</span>
+        <span className="is-on">L</span>
+        <span>XL</span>
+      </div>
+      <p className="site-scene-label">Anything else? Optional</p>
+      <p className="site-buy-note">Navy, no print</p>
+      {BUY_PRODUCTS.map(([name, detail]) => (
+        <article className="site-buy" key={name}>
+          <div>
+            <h3>{name}</h3>
+            <p>{detail}</p>
+          </div>
+          <span>Open</span>
+        </article>
+      ))}
+      <p className="site-partner">Opens on Amazon. The price you pay is the same.</p>
+    </div>
+  );
 }
 
 function AskScene() {
@@ -704,7 +801,7 @@ function Footer() {
         <Link to="/privacy">Privacy policy</Link>
       </div>
       <p className="site-footer-note">
-        Safar plans the trip and opens partner sites for stays and tables. It does not take hotel payment. © {new Date().getFullYear()} Safar
+        Safar plans the trip and opens partner sites for stays, tables, and things you buy. It does not take the payment. © {new Date().getFullYear()} Safar
       </p>
     </footer>
   );
