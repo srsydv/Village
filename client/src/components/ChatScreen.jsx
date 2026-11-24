@@ -13,6 +13,7 @@ import { useTravel } from "../lib/TravelContext.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
 import { AskSteps } from "./AskSteps.jsx";
 import { ProductFinder } from "./ProductFinder.jsx";
+import { FlightBook, FlightIssue } from "./FlightBook.jsx";
 
 export function ChatScreen() {
   const { profile, chats, addChat, removeChat } = useTravel();
@@ -129,7 +130,15 @@ export function ChatScreen() {
   }, [incoming]);
 
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+    const box = scroller.current;
+    if (!box) return;
+    const lists = box.querySelectorAll("[data-flights]");
+    const flights = lists[lists.length - 1];
+    if (flights) {
+      flights.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    box.scrollTo({ top: box.scrollHeight });
   }, [messages, busy]);
 
   const empty = messages.length === 0 && !busy;
@@ -165,6 +174,10 @@ export function ChatScreen() {
           )}
         </div>
       </header>
+
+      <div className="flight-ui">
+        <FlightIssue variant="web" />
+      </div>
 
       <div ref={scroller} className="no-scrollbar flex-1 overflow-y-auto px-5 pb-2">
         {empty && (
@@ -208,8 +221,8 @@ export function ChatScreen() {
               {m.role === "assistant" ? (
                 m.content ? (
                   <>
-                    <RichText text={m.content} />
                     <ChatOffers question={question} profile={profile} live={i === messages.length - 1} />
+                    <RichText text={m.content} />
                     <ProductFinder question={question} saved={chats.find((item) => item.id === chatId)?.shops?.[question]} onSave={(answers) => saveShop(question, answers)} />
                   </>
                 ) : (
@@ -337,6 +350,7 @@ function ChatOffers({ question, profile, live }) {
   const offer = readOffer(question);
   const [picks, setPicks] = useState(null);
   const [note, setNote] = useState("");
+  const [liveFares, setLiveFares] = useState(false);
   const flight = Boolean(offer?.modes?.includes("flight") && offer.from && offer.to);
 
   useEffect(() => {
@@ -391,8 +405,13 @@ function ChatOffers({ question, profile, live }) {
   return (
     <div className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">
       <p className="kicker">{offer ? "Book" : "Buy"}</p>
-      {note ? <p className="text-xs text-[var(--muted)]">{note}</p> : null}
-      {offer && board?.options.map((option) => {
+      {note && !liveFares ? <p className="text-xs text-[var(--muted)]">{note}</p> : null}
+      {flight ? (
+        <div className="flight-ui">
+          <FlightBook frame="phone" variant="web" question={question} from={offer.from} to={offer.to} date={tomorrowIso()} onLive={setLiveFares} />
+        </div>
+      ) : null}
+      {offer && board?.options.filter((option) => !(liveFares && option.id === "flight")).map((option) => {
         const partners = option.partners || [];
         const featured = ["makemytrip", "goibibo"]
           .map((id) => partners.find((item) => item.id === id))

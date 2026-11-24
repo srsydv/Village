@@ -23,6 +23,8 @@ import { getChats, uid } from "../../lib/storage.js";
 import { buildJourney, TRANSPORT_MODES } from "../../lib/transport.js";
 import { useTravel } from "../../lib/TravelContext.jsx";
 import { AskSteps } from "../AskSteps.jsx";
+import { FlightBook, FlightIssue } from "../FlightBook.jsx";
+import { TicketList } from "../TicketList.jsx";
 import { ProductFinder } from "../ProductFinder.jsx";
 import "./try.css";
 
@@ -321,6 +323,9 @@ function Desk({ travel }) {
           <button type="button" className={section === "plan" ? "web-ghost is-on" : "web-ghost"} onClick={() => setSection("plan")}>
             Plan a trip
           </button>
+          <button type="button" className={section === "tickets" ? "web-ghost is-on" : "web-ghost"} onClick={() => setSection("tickets")}>
+            Tickets
+          </button>
         </div>
         <div className="web-rail-scroll">
           <p className="web-kicker">Questions</p>
@@ -362,6 +367,7 @@ function Desk({ travel }) {
         </div>
       </aside>
       <main className="web-main">
+        <FlightIssue variant="web" onTicket={() => setSection("tickets")} />
         {section === "ask" ? (
           <Ask
             messages={messages}
@@ -396,6 +402,11 @@ function Desk({ travel }) {
           />
         ) : null}
         {section === "trip" ? <TripView trip={trip} profile={profile} onUpdate={addTrip} /> : null}
+        {section === "tickets" ? (
+          <section className="web-panel">
+            <TicketList variant="web" />
+          </section>
+        ) : null}
         {section === "people" && account?.isAdmin ? <People /> : null}
       </main>
     </div>
@@ -459,8 +470,8 @@ function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSen
               </p>
             ) : (
               <div key={`${index}-safar`} className="web-safar">
-                <RichText text={message.content} />
                 <AskOffers question={question} profile={profile} />
+                <RichText text={message.content} />
                 <ProductFinder variant="web" question={question} saved={shops[question]} onSave={(answers) => onShop?.(question, answers)} />
               </div>
             );
@@ -482,6 +493,7 @@ function AskOffers({ question, profile }) {
   const offer = readOffer(question);
   const [picks, setPicks] = useState(null);
   const [note, setNote] = useState("");
+  const [liveFares, setLiveFares] = useState(false);
   const flight = Boolean(offer?.modes?.includes("flight") && offer.from && offer.to);
 
   useEffect(() => {
@@ -534,9 +546,10 @@ function AskOffers({ question, profile }) {
   return (
     <div className="web-offers">
       <p className="web-kicker">{offer ? "Book" : "Buy"}</p>
-      {note ? <p className="web-note">{note}</p> : null}
+      {note && !liveFares ? <p className="web-note">{note}</p> : null}
+      {flight ? <FlightBook variant="web" question={question} from={offer.from} to={offer.to} date={tomorrowIso()} onLive={setLiveFares} /> : null}
       {board
-        ? board.options.map((option) => (
+        ? board.options.filter((option) => !(liveFares && option.id === "flight")).map((option) => (
             <FareCard
               key={option.id}
               option={option}

@@ -12,6 +12,7 @@ import sharesRouter from "./routes/shares.js";
 import adminRouter from "./routes/admin.js";
 import billingRouter from "./routes/billing.js";
 import shopRouter from "./routes/shop.js";
+import flightsRouter from "./routes/flights.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT_DIR, ".env") });
@@ -94,6 +95,7 @@ app.use(activityRouter);
 app.use("/api/travel", travelRouter);
 app.use("/api/places", placesRouter);
 app.use("/api/shop", shopRouter);
+app.use("/api/flights", flightsRouter);
 
 app.use((err, _req, res, next) => {
   if (res.headersSent) return next(err);
@@ -114,6 +116,9 @@ if (isProd) {
   });
 }
 
-app.listen(PORT, HOST, () => {
+const server = app.listen(PORT, HOST, () => {
   console.log(`Safar API http://${HOST}:${PORT}`);
 });
+server.requestTimeout = 300000;
+server.headersTimeout = 305000;
+server.timeout = 300000;

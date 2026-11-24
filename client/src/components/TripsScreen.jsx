@@ -5,6 +5,7 @@ import { hasDatedTrip, withDayNote } from "../lib/calendar.js";
 import { daysUntil, formatTripSpan } from "../lib/dates.js";
 import { useTravel } from "../lib/TravelContext.jsx";
 import { PhoneReminders } from "./PhoneReminders.jsx";
+import { TicketList } from "./TicketList.jsx";
 import { TripCalendar } from "./TripCalendar.jsx";
 
 export function TripsScreen() {
@@ -52,6 +53,10 @@ export function TripsScreen() {
       <p className="mt-2 text-sm text-[var(--muted)]">
         Saved to your account. They reload on any phone you sign in with.
       </p>
+
+      <div className="flight-ui">
+        <TicketList variant="web" />
+      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-1 rounded-2xl border border-[var(--line)] p-1">
         <ViewTab active={view === "calendar"} onClick={() => setView("calendar")}>
