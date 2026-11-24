@@ -8,6 +8,7 @@ import { useTravel } from "../lib/TravelContext.jsx";
 import { ConfirmDialog } from "./ConfirmDialog.jsx";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
 import { PassportSelect } from "./PassportSelect.jsx";
+import { TicketList } from "./TicketList.jsx";
 
 export function PrivacyScreen() {
   const { profile, updateProfile, account, signOut } = useTravel();
@@ -77,6 +78,10 @@ export function PrivacyScreen() {
       <p className="kicker mt-5">You</p>
       <h1 className="serif mt-1 text-[2.1rem] font-semibold">Profile</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">Used for budgets, visas, and “departing from” in every plan.</p>
+
+      <div className="flight-ui">
+        <TicketList variant="web" />
+      </div>
 
       <div className="card mt-6 rounded-[1.4rem] p-4">
         <div className="flex items-center gap-3">

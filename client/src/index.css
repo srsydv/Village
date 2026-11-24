@@ -393,3 +393,10 @@ select.field option {
 img {
   max-width: 100%;
 }
+
+.safar-pay,
+.safar-pay form,
+.safar-pay div {
+  overflow: visible;
+  max-height: none;
+}

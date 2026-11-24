@@ -465,6 +465,78 @@ function asDay(parsed, dayNumber) {
   };
 }
 
+export async function flightStatus() {
+  const res = await apiFetch("/api/flights/status", { headers: activityHeaders() });
+  const data = await res.json().catch(() => ({}));
+  return { enabled: Boolean(data.enabled), sandbox: Boolean(data.sandbox) };
+}
+
+export async function searchLiveFlights({ from, to, date, adults, currency, home, question }) {
+  const payload = { from, to, date, adults, currency, home, question };
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(payload)) {
+    if (value) params.set(key, String(value));
+  }
+  const res = await apiFetch(`/api/flights/search?${params.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not load live fares.");
+  return data;
+}
+
+export async function verifyLiveFlight(offerId) {
+  const res = await apiFetch("/api/flights/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ offerId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "This fare is no longer available.");
+  return data;
+}
+
+export async function prebookLiveFlight({ offerId, traveler }) {
+  const res = await apiFetch("/api/flights/prebook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ offerId, traveler }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "The airline could not hold this fare.");
+  return data;
+}
+
+export async function attachLiveSeat({ prebookId, seat, extras }) {
+  const res = await apiFetch("/api/flights/services", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ prebookId, seat, extras }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "That seat could not be added.");
+  return data;
+}
+
+export async function bookLiveFlight(payload) {
+  const res = await apiFetch("/api/flights/book", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Payment finished, but the ticket was not issued. Check your tickets before paying again.");
+  return data.ticket;
+}
+
+export async function listTickets() {
+  const res = await apiFetch("/api/flights/tickets", { headers: activityHeaders() });
+  const data = await res.json().catch(() => ({}));
+  return Array.isArray(data.tickets) ? data.tickets : [];
+}
+
 export async function suggestFlights(journey) {
   ensureGemini();
   const brief = flightPicksBrief(journey);

@@ -168,11 +168,17 @@ export function readOffer(raw) {
   const text = String(raw || "").replace(/\s+/g, " ").trim();
   if (!text) return null;
   const lower = text.toLowerCase();
-  const tidy = (value) =>
-    String(value || "")
+  const filler = /^(?:please|show|find|get|need|want|book|booking|cheap|cheapest|best|direct|nonstop|a|an|the|me|my|our|ticket|tickets|flight|flights|fly|flying|train|trains|bus|buses)$/i;
+  const tidy = (value) => {
+    const words = String(value || "")
       .replace(/\b(for|with|on|this|next|tomorrow|tonight|please|around|about)\b.*$/i, "")
       .replace(/[?.!,].*$/, "")
-      .trim();
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    while (words.length > 1 && filler.test(words[0])) words.shift();
+    return words.join(" ");
+  };
 
   const modes = [];
   if (/\b(flight|flights|fly|flying|plane|airline|airlines)\b/.test(lower)) modes.push("flight");
