@@ -14,10 +14,10 @@ import { useTravel } from "../lib/TravelContext.jsx";
 import "./site/try.css";
 
 const STEPS = [
-  ["fare", "Flight & fare"],
-  ["traveler", "Travelers"],
-  ["bags", "Seats & bags"],
-  ["review", "Review & pay"],
+  ["fare", "Flight & fare", "Fare"],
+  ["traveler", "Travelers", "Travelers"],
+  ["bags", "Seats & bags", "Extras"],
+  ["review", "Review & pay", "Pay"],
 ];
 
 function stepIndex(step) {
@@ -90,10 +90,10 @@ function cabinPlan(seats) {
       aisleBefore.add(columns[index]);
     }
   }
-  const parts = ["1.6rem"];
+  const parts = ["2.4rem"];
   for (const column of columns) {
-    if (aisleBefore.has(column)) parts.push("0.9rem");
-    parts.push("1.75rem");
+    if (aisleBefore.has(column)) parts.push("0.85rem");
+    parts.push("2rem");
   }
   return { columns, aisleBefore, template: parts.join(" ") };
 }
@@ -290,7 +290,7 @@ function WheelColumn({ label, items, selected, onSelect, light }) {
   );
 }
 
-function HoldClock({ iso, web }) {
+function HoldClock({ iso, web, caption = "Fare quote valid for" }) {
   const [label, setLabel] = useState(() => holdLeft(iso));
   useEffect(() => {
     const tick = () => setLabel(holdLeft(iso));
@@ -301,17 +301,67 @@ function HoldClock({ iso, web }) {
   if (!label) return null;
   return (
     <p className={web ? "web-hold" : "mb-2 flex items-center justify-between text-[0.75rem] text-[var(--muted)]"}>
-      <span>Checkout window remaining</span>
+      <span>{caption}</span>
       <strong>{label}</strong>
     </p>
   );
 }
 
-function ReviewBody({ web, people, partyCount, traveler, fare, held, seat, extra, travelDate }) {
-  const currency = held?.currency || fare?.price?.currency || "";
-  const due = held?.total ?? fare?.price?.total ?? null;
+function StepGlyph({ id }) {
+  const props = { viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" };
+  if (id === "traveler") {
+    return <svg {...props}><circle cx="12" cy="8" r="3" /><path d="M5.5 19c1.4-3 3.6-4.5 6.5-4.5s5.1 1.5 6.5 4.5" /></svg>;
+  }
+  if (id === "bags") {
+    return <svg {...props}><path d="M8 8V7a4 4 0 0 1 8 0v1" /><rect x="5" y="8" width="14" height="11" rx="2" /></svg>;
+  }
+  if (id === "review") {
+    return <svg {...props}><rect x="4" y="6" width="16" height="12" rx="2" /><path d="M4 10h16" /></svg>;
+  }
+  return <svg {...props}><path d="M3 12h7l2-6 2 4h7" /><path d="M10 12l-2 7h4" /></svg>;
+}
+
+function QuoteBar({ fare, held, seat, extra, travelDate, totalLabel, clockLabel = "Fare quote valid for" }) {
+  const currency = seat?.currency || extra?.currency || held?.currency || fare?.price?.currency || "";
   const fareTotal = fare?.price?.total ?? null;
-  const added = due != null && fareTotal != null && Math.abs(due - fareTotal) > 0.009 ? due - fareTotal : null;
+  const picks = (Number(seat?.price) || 0) + (Number(extra?.price) || 0);
+  const amount = totalLabel === "Total due"
+    ? held?.total ?? fareTotal
+    : totalLabel === "Estimated total"
+      ? (fareTotal ?? held?.total ?? null) == null ? null : (fareTotal ?? held?.total) + picks
+      : totalLabel === "Current total" && held?.total != null && !seat && !extra
+        ? held.total
+        : fareTotal;
+  return (
+    <div className="web-quote">
+      <HoldClock iso={fare?.expiresAt} web caption={clockLabel} />
+      <div className="web-quote-route">
+        <div>
+          <strong>{fare?.from && fare?.to ? `${fare.from} → ${fare.to}` : ""}</strong>
+          <p>{when(travelDate)}</p>
+        </div>
+        <div>
+          <span>{totalLabel}</span>
+          <strong>{amount == null ? "—" : money(amount, currency)}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function bagPiece(name) {
+  const match = String(name || "").match(/(\d+(?:\.\d+)?)\s*kg/i);
+  return match ? `1 × ${match[1]} kg` : "";
+}
+
+function FareSummary({ web, fare, held, seat, extra, partyCount, travelDate, totalLabel = "Current total", clockLabel = "Fare quote valid for", picksOnTotal = false, confirmExtras = false }) {
+  const currency = held?.currency || fare?.price?.currency || "";
+  const fareTotal = fare?.price?.total ?? null;
+  const pickSum = (Number(seat?.price) || 0) + (Number(extra?.price) || 0);
+  const due = picksOnTotal
+    ? (fareTotal ?? held?.total ?? null) == null ? null : (fareTotal ?? held.total) + pickSum
+    : held?.total ?? fareTotal;
+  const added = !picksOnTotal && due != null && fareTotal != null && Math.abs(due - fareTotal) > 0.009 ? due - fareTotal : null;
   const priceRows = [
     ["Base fare", fare?.price?.base],
     ["Taxes", fare?.price?.taxes],
@@ -320,8 +370,58 @@ function ReviewBody({ web, people, partyCount, traveler, fare, held, seat, extra
     [extra?.name, extra ? extra.price : null],
   ].filter(([label, amount]) => label && amount != null);
   const flightMeta = [fare?.cabin, fare?.family, fare?.seatsLeft ? `${fare.seatsLeft} left` : ""].filter(Boolean);
-  const whenLine = [when(travelDate), fare?.depart].filter(Boolean).join(" · ");
+  const flightLine = [fare?.flight, when(travelDate), fare?.depart].filter(Boolean).join(" · ");
   const tripLine = [duration(fare?.minutes), fare?.stopLabel].filter(Boolean).join(" · ");
+  const kicker = web ? "web-review-kicker" : "mt-4 text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]";
+  const row = web ? "web-price-row" : "mt-2 flex items-start justify-between gap-3 text-sm";
+
+  return (
+    <aside className={web ? "web-review-card" : "rounded-2xl border border-[var(--line)] p-3"}>
+      <HoldClock iso={fare?.expiresAt} web={web} caption={clockLabel} />
+      <p className={web ? "web-due" : "flex items-baseline justify-between gap-3"}>
+        <span>{totalLabel}</span>
+        <strong className={web ? "" : "text-2xl"}>{due == null ? "—" : money(due, currency)}</strong>
+      </p>
+      {added != null && added > 0 ? (
+        <p className={web ? "web-price-more" : "mt-1 text-xs text-[var(--muted)]"}>
+          <s>{money(fareTotal, fare?.price?.currency || currency)}</s>
+          + {money(added, currency)} more
+        </p>
+      ) : null}
+      {priceRows.map(([label, amount]) => (
+        <p key={label} className={row}>
+          <span>{label}</span>
+          <span>{money(amount, label === extra?.name ? extra.currency || currency : label === "Seats" ? seat?.currency || currency : fare?.price?.currency || currency)}</span>
+        </p>
+      ))}
+      {confirmExtras && (seat || extra) ? (
+        <p className={web ? "web-note" : "mt-2 text-xs text-[var(--muted)]"}>
+          Safar confirms the extras with the airline before payment opens.
+        </p>
+      ) : null}
+      <div className={web ? "web-rule" : "my-3 h-px bg-[var(--line)]"} />
+      <p className={kicker}>Flight</p>
+      {fare?.from && fare?.to ? <p className={web ? "web-review-name" : "text-sm font-medium"}>{fare.from} → {fare.to}</p> : null}
+      {flightLine ? <p className={web ? "web-note" : "text-xs text-[var(--muted)]"}>{flightLine}</p> : null}
+      {tripLine ? <p className={web ? "web-note" : "text-xs text-[var(--muted)]"}>{tripLine}</p> : null}
+      {flightMeta.length ? <p className={web ? "web-note" : "mt-2 text-xs text-[var(--muted)]"}>{flightMeta.join(" · ")}</p> : null}
+      <p className={web ? "web-note" : "text-xs text-[var(--muted)]"}>{partyCount} traveler{partyCount === 1 ? "" : "s"}</p>
+      {fare?.baggage?.length || fare?.terms?.length ? (
+        <>
+          <p className={kicker}>Fare</p>
+          {(fare.baggage || []).map((item) => <p key={item} className={web ? "web-fare-line" : "mt-1 text-sm"}>{item}</p>)}
+          {(fare.terms || []).map((item) => <p key={item} className={web ? "web-fare-line" : "mt-1 text-sm"}>{item}</p>)}
+        </>
+      ) : null}
+      <p className={web ? "web-review-sub" : "mt-3 text-[0.7rem] text-[var(--muted)]"}>
+        Payment is handled by the booking partner. Safar never sees or stores the card.
+      </p>
+    </aside>
+  );
+}
+
+function ReviewBody({ web, people, partyCount, traveler, fare, held, seat, extra, travelDate }) {
+  const currency = held?.currency || fare?.price?.currency || "";
   const picks = [
     seat ? [`Seat ${seat.number}`, [fare?.from && fare?.to ? `${fare.from} → ${fare.to}` : "", fare?.flight].filter(Boolean).join(" · "), seat.price] : null,
     extra ? [extra.name, "", extra.price] : null,
@@ -359,42 +459,17 @@ function ReviewBody({ web, people, partyCount, traveler, fare, held, seat, extra
           Returning from the bank does not confirm a ticket on its own.
         </p>
       </div>
-      <aside className={web ? "web-review-card" : "rounded-2xl border border-[var(--line)] p-3"}>
-        <HoldClock iso={fare?.expiresAt} web={web} />
-        <p className={web ? "web-due" : "flex items-baseline justify-between gap-3"}>
-          <span>Total due</span>
-          <strong className={web ? "" : "text-2xl"}>{due == null ? "—" : money(due, currency)}</strong>
-        </p>
-        {added != null && added > 0 ? (
-          <p className={web ? "web-price-more" : "mt-1 text-xs text-[var(--muted)]"}>
-            <s>{money(fareTotal, fare?.price?.currency || currency)}</s>
-            + {money(added, currency)} more
-          </p>
-        ) : null}
-        {priceRows.map(([label, amount]) => (
-          <p key={label} className={row}>
-            <span>{label}</span>
-            <span>{money(amount, label === extra?.name ? extra.currency || currency : label === "Seats" ? seat?.currency || currency : fare?.price?.currency || currency)}</span>
-          </p>
-        ))}
-        <div className={web ? "web-rule" : "my-3 h-px bg-[var(--line)]"} />
-        <p className={kicker}>Flight</p>
-        {fare?.from && fare?.to ? <p className={web ? "web-review-name" : "text-sm font-medium"}>{fare.from} → {fare.to}</p> : null}
-        {whenLine ? <p className={web ? "web-note" : "text-xs text-[var(--muted)]"}>{whenLine}</p> : null}
-        {tripLine ? <p className={web ? "web-note" : "text-xs text-[var(--muted)]"}>{tripLine}</p> : null}
-        {flightMeta.length ? <p className={web ? "web-note" : "mt-2 text-xs text-[var(--muted)]"}>{flightMeta.join(" · ")}</p> : null}
-        <p className={web ? "web-note" : "text-xs text-[var(--muted)]"}>{partyCount} traveler{partyCount === 1 ? "" : "s"}</p>
-        {fare?.baggage?.length || fare?.terms?.length ? (
-          <>
-            <p className={kicker}>Fare</p>
-            {(fare.baggage || []).map((item) => <p key={item} className={web ? "web-fare-line" : "mt-1 text-sm"}>{item}</p>)}
-            {(fare.terms || []).map((item) => <p key={item} className={web ? "web-fare-line" : "mt-1 text-sm"}>{item}</p>)}
-          </>
-        ) : null}
-        <p className={web ? "web-review-sub" : "mt-3 text-[0.7rem] text-[var(--muted)]"}>
-          Payment is handled by the booking partner. Safar never sees or stores the card.
-        </p>
-      </aside>
+      <FareSummary
+        web={web}
+        fare={fare}
+        held={held}
+        seat={seat}
+        extra={extra}
+        partyCount={partyCount}
+        travelDate={travelDate}
+        totalLabel="Total due"
+        clockLabel="Checkout window remaining"
+      />
     </div>
   );
 }
@@ -460,8 +535,12 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
   });
   const payRef = useRef(null);
   const listRef = useRef(null);
+  const cabinRef = useRef(null);
   const web = variant === "web";
   const fare = checked || chosen;
+  const listedFare = (fare?.fares || []).find((item) => item.offerId === fare?.offerId) || null;
+  const listedTotal = listedFare?.price?.total ?? null;
+  const fareMoved = listedTotal != null && fare?.price?.total != null && Math.abs(fare.price.total - listedTotal) > 0.009;
   const travelDate = query?.date || tripDate || date;
   const partyCount = query?.adults || adults;
 
@@ -854,73 +933,130 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
         <div className={web ? "web-sheet" : "fixed inset-0 z-50 grid place-items-end bg-black/60 p-3 sm:place-items-center"} role="dialog" aria-modal="true">
           <div className={web ? "web-sheet-card" : "max-h-[92dvh] w-full max-w-3xl overflow-auto rounded-3xl bg-[var(--paper)] p-4 text-[var(--cream)]"}>
             <div className={web ? "web-sheet-head" : "mb-3 flex items-start justify-between gap-3"}>
-              <div>
-                <p className={web ? "" : "text-sm font-medium"}>{fare?.airline || chosen.airline}</p>
-                <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>
-                  {[`${fare?.from || chosen.from} → ${fare?.to || chosen.to}`, formatDay(travelDate), fare?.family, fare?.cabin].filter(Boolean).join(" · ")}
-                </p>
+              <div className={web ? "web-airline" : ""}>
+                {web ? <span className="web-airline-mark">{String(fare?.airline || chosen.airline || "A").slice(0, 2)}</span> : null}
+                <div>
+                  <p className={web ? "" : "text-sm font-medium"}>{fare?.airline || chosen.airline}</p>
+                  <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>
+                    {[`${fare?.from || chosen.from} → ${fare?.to || chosen.to}`, formatDay(travelDate)].filter(Boolean).join(" · ")}
+                  </p>
+                  {fare?.cabin ? <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>{fare.cabin}</p> : null}
+                </div>
               </div>
-              <button type="button" className={web ? "web-text-btn" : "text-xs text-[var(--muted)]"} onClick={() => { setChosen(null); setStep(""); setError(""); }}>
-                Close
+              <button type="button" className={web ? "web-close" : "text-xs text-[var(--muted)]"} onClick={() => { setChosen(null); setStep(""); setError(""); }} aria-label="Close">
+                ×
               </button>
             </div>
             {step !== "done" ? (
               <ol className={web ? "web-book-steps" : "mb-4 flex items-center overflow-x-auto text-[0.65rem]"}>
-                {STEPS.map(([id, label], index) => {
+                {STEPS.map(([id, label, short], index) => {
                   const current = stepIndex(step);
                   const state = index < current ? "is-done" : index === current ? "is-on" : "";
                   return (
                     <li key={id} className={web ? state : `flex min-w-0 flex-1 items-center gap-1.5 ${state ? "text-[var(--gold-bright)]" : "text-[var(--muted)]"}`}>
                       <span className={web ? "web-step-mark" : `grid h-4 w-4 shrink-0 place-items-center rounded-full border text-[0.6rem] leading-none ${state ? "border-[var(--gold)] bg-[var(--gold)] text-black" : "border-[var(--line)] text-transparent"}`}>
-                        {index < current ? "✓" : ""}
+                        {web ? <span className="web-step-check">✓</span> : index < current ? "✓" : ""}
+                        {web ? <span className="web-step-icon"><StepGlyph id={id} /></span> : null}
                       </span>
-                      <span>{label}</span>
+                      <span className={web ? "web-step-label" : ""}>
+                        {web ? <span className="web-step-long">{label}</span> : label}
+                        {web ? <span className="web-step-short">{short}</span> : null}
+                      </span>
                       {!web && index < STEPS.length - 1 ? <span className="mx-1.5 h-px min-w-3 flex-1 bg-[var(--line)]" /> : null}
                     </li>
                   );
                 })}
               </ol>
             ) : null}
+            <div className={web ? "web-sheet-scroll" : ""}>
             {error ? <p className={web ? "web-error" : "mb-3 text-xs text-[var(--rose)]"}>{error}</p> : null}
 
-            {step === "fare" ? (
+            {step === "fare" && busy ? (
+              <div className={web ? "web-wait" : "py-10 text-center"}>
+                <p className={web ? "web-review-title" : "text-lg font-semibold"}>Checking today’s fare</p>
+                <p className={web ? "web-review-sub" : "mt-2 text-sm text-[var(--muted)]"}>
+                  Confirming the price and seats with {fare?.airline || "the airline"}. This usually takes a few seconds — occasionally up to thirty.
+                </p>
+              </div>
+            ) : null}
+
+            {step === "fare" && !busy && fareMoved ? (
               <div>
-                <p className={web ? "" : "text-sm"}>{busy ? "Checking today’s fare with the airline." : "Choose the fare to hold."}</p>
-                <div className={web ? "web-fares" : "mt-3 grid gap-2"}>
-                  {(fare?.fares || [fare]).filter(Boolean).map((item) => (
-                    <button
-                      key={item.offerId}
-                      type="button"
-                      className={item.offerId === fare.offerId ? (web ? "web-fare is-on" : "rounded-2xl border border-[var(--gold)] px-3 py-2 text-left") : (web ? "web-fare" : "rounded-2xl border border-[var(--line)] px-3 py-2 text-left")}
-                      onClick={() => chooseFare(item)}
-                    >
-                      <span className={web ? "" : "flex items-center justify-between gap-3"}>
-                        <strong>{item.family}</strong>
-                        <span>{money(item.price.total, item.price.currency)}</span>
-                      </span>
-                      <span className={web ? "web-note" : "mt-1 block text-[0.7rem] text-[var(--muted)]"}>
-                        {(item.baggage || []).join(" · ")}
-                        {item.seatsLeft ? ` · ${item.seatsLeft} left` : ""}
-                      </span>
-                    </button>
-                  ))}
+                <QuoteBar fare={fare} held={held} travelDate={travelDate} totalLabel="Updated total" />
+                <div className={web ? "web-step-split" : ""}>
+                  <div>
+                    <h3 className={web ? "web-review-title" : "text-lg font-semibold"}>The fare changed</h3>
+                    <p className={web ? "web-review-sub" : "mt-1 text-sm text-[var(--muted)]"}>Airline fares move while you book. Here is the current price for this itinerary — nothing is charged until you pay.</p>
+                    <div className={web ? "web-was-now" : "mt-4 grid grid-cols-2 gap-3"}>
+                      <p><span>Was</span><strong>{money(listedTotal, listedFare?.price?.currency || fare.price.currency)}</strong></p>
+                      <p><span>Now</span><strong>{money(fare.price.total, fare.price.currency)}</strong><em className={fare.price.total < listedTotal ? "is-less" : "is-more"}>{money(Math.abs(fare.price.total - listedTotal), fare.price.currency)} {fare.price.total < listedTotal ? "less" : "more"}</em></p>
+                    </div>
+                  </div>
+                  <FareSummary web={web} fare={fare} held={held} seat={seat} extra={extra} partyCount={partyCount} travelDate={travelDate} totalLabel="Updated total" />
                 </div>
-                <div className={web ? "web-sheet-actions" : "mt-4 flex justify-end"}>
-                  <button type="button" disabled={busy || !fare?.offerId} className={web ? "web-next" : "rounded-full bg-[var(--gold)] px-4 py-2 text-sm text-black disabled:opacity-50"} onClick={() => setStep("traveler")}>
-                    Continue
+                <div className={web ? "web-sheet-actions is-end" : "mt-4 flex justify-end gap-3"}>
+                  <button type="button" className={web ? "web-text-btn" : "text-xs"} onClick={() => { setChosen(null); setStep(""); setError(""); }}>Choose another flight</button>
+                  <button type="button" className={web ? "web-next" : "rounded-full bg-[var(--gold)] px-4 py-2 text-sm text-black"} onClick={() => setStep("traveler")}>
+                    Continue at {money(fare.price.total, fare.price.currency)}
                   </button>
                 </div>
               </div>
             ) : null}
 
-            {step === "traveler" ? (
+            {step === "fare" && !busy && !fareMoved ? (
+              <div>
+                <h3 className={web ? "web-review-title" : "text-lg font-semibold"}>Fare options</h3>
+                <p className={web ? "web-review-sub" : "mt-1 text-xs text-[var(--muted)]"}>One-way total</p>
+                <div className={web ? "web-fares" : "mt-3 grid gap-2"}>
+                  {(fare?.fares || [fare]).filter(Boolean).map((item) => {
+                    const on = item.offerId === fare.offerId;
+                    const lines = [...(item.baggage || []), ...(item.terms || [])];
+                    return (
+                      <button
+                        key={item.offerId}
+                        type="button"
+                        className={on ? (web ? "web-fare is-on" : "rounded-2xl border border-[var(--gold)] px-3 py-2 text-left") : (web ? "web-fare" : "rounded-2xl border border-[var(--line)] px-3 py-2 text-left")}
+                        onClick={() => chooseFare(item)}
+                      >
+                        <span className={web ? "web-fare-top" : "flex items-center justify-between gap-3"}>
+                          <strong>{item.family}</strong>
+                          <span>{money(item.price.total, item.price.currency)}</span>
+                        </span>
+                        {lines.map((line) => <span key={line} className={web ? "web-fare-line" : "mt-1 block text-[0.7rem] text-[var(--muted)]"}>{line}</span>)}
+                        {item.seatsLeft ? <span className={web ? "web-seats-left" : "mt-1 block text-[0.7rem] text-[var(--gold-bright)]"}>{item.seatsLeft} {item.seatsLeft === 1 ? "seat" : "seats"} left at this fare</span> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className={web ? "web-sheet-actions is-end" : "mt-4 flex justify-end gap-3"}>
+                  <button type="button" className={web ? "web-text-btn" : "text-xs"} onClick={() => { setChosen(null); setStep(""); setError(""); }}>Cancel</button>
+                  <button type="button" disabled={!fare?.offerId} className={web ? "web-next" : "rounded-full bg-[var(--gold)] px-4 py-2 text-sm text-black disabled:opacity-50"} onClick={() => setStep("traveler")}>
+                    Book {money(fare?.price?.total, fare?.price?.currency)}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {step === "traveler" && busy ? (
+              <div className={web ? "web-wait" : "py-10 text-center"}>
+                <QuoteBar fare={fare} held={held} travelDate={travelDate} totalLabel={fareMoved ? "Updated total" : "Current total"} />
+                <p className={web ? "web-review-title" : "text-lg font-semibold"}>Holding your itinerary</p>
+                <p className={web ? "web-review-sub" : "mt-2 text-sm text-[var(--muted)]"}>
+                  Confirming the flights and fare with the airline before seats and bags open. You haven’t been charged.
+                </p>
+              </div>
+            ) : null}
+
+            {step === "traveler" && !busy ? (
               <form
-                className={web ? "web-traveler" : "grid gap-3"}
                 onSubmit={(event) => {
                   event.preventDefault();
                   hold();
                 }}
               >
+                <QuoteBar fare={fare} held={held} travelDate={travelDate} totalLabel={fareMoved ? "Updated total" : "Current total"} />
+                <div className={web ? "web-step-split" : "grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]"}>
+                <div className={web ? "web-traveler" : "grid gap-3"}>
                 <p className={web ? "" : "text-sm"}>Who’s flying?</p>
                 {people.slice(0, partyCount).map((person, index) => (
                   <fieldset key={index} className={web ? "web-person" : "grid gap-3 rounded-2xl border border-[var(--line)] p-3"}>
@@ -969,10 +1105,21 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
                   Passport number, if this route asks for it
                   <input className={web ? "" : "field"} value={traveler.documentNumber} onChange={(event) => setTraveler({ ...traveler, documentNumber: event.target.value })} />
                 </label>
+                </div>
+                <FareSummary
+                  web={web}
+                  fare={fare}
+                  held={held}
+                  seat={seat}
+                  extra={extra}
+                  partyCount={partyCount}
+                  travelDate={travelDate}
+                />
+                </div>
                 <div className={web ? "web-sheet-actions" : "mt-2 flex justify-between"}>
                   <button type="button" className={web ? "web-text-btn" : "text-xs"} onClick={() => setStep("fare")}>Back</button>
                   <button type="submit" disabled={busy} className={web ? "web-next" : "rounded-full bg-[var(--gold)] px-4 py-2 text-sm text-black disabled:opacity-50"}>
-                    {busy ? "Holding the fare…" : "Continue"}
+                    Next
                   </button>
                 </div>
               </form>
@@ -980,106 +1127,179 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
 
             {step === "bags" ? (
               <div>
-                <div className={web ? "web-seat-head" : "flex items-baseline justify-between gap-3"}>
-                  <p className={web ? "" : "text-sm"}>Seats and bags</p>
-                  <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>
-                    {orderedRows.length ? `${openSeats} selectable seats` : "No seat map for this fare"}
-                  </p>
-                </div>
-                {fare?.baggage?.length ? (
-                  <p className={web ? "web-note" : "mt-1 text-xs text-[var(--muted)]"}>{fare.baggage.join(" · ")}</p>
-                ) : null}
-                {orderedRows.length ? (
-                <div className={web ? "web-legend" : "mt-2 flex flex-wrap gap-3 text-[0.65rem] text-[var(--muted)]"}>
-                  <span><i className={web ? "is-seat" : "mr-1 inline-block h-3 w-3 rounded-sm bg-white/80"} /> Standard</span>
-                  <span><i className={web ? "is-exit" : "mr-1 inline-block h-3 w-3 rounded-sm bg-emerald-200"} /> Exit row</span>
-                  <span><i className={web ? "is-taken" : "mr-1 inline-block h-3 w-3 rounded-sm bg-white/25"} /> Already booked</span>
-                </div>
-                ) : null}
-                {orderedRows.length ? (
-                  <div className={web ? "web-cabin" : "mt-3 max-h-80 overflow-auto rounded-2xl border border-[var(--line)] px-2 py-3"}>
-                    <div className={web ? "web-cabin-row is-letters" : "mb-2 grid items-center justify-center gap-1.5 text-center text-[0.65rem] text-[var(--muted)]"} style={{ gridTemplateColumns: cabin.template }}>
-                      <span />
-                      {cabin.columns.map((column) => (
-                        <span key={column} style={{ display: "contents" }}>
-                          {cabin.aisleBefore.has(column) ? <span /> : null}
-                          <span>{column}</span>
-                        </span>
-                      ))}
+                <QuoteBar
+                  fare={fare}
+                  held={held}
+                  seat={seat}
+                  extra={extra}
+                  travelDate={travelDate}
+                  totalLabel={seat || extra ? "Estimated total" : "Current total"}
+                  clockLabel="Checkout window remaining"
+                />
+                <div className={web ? "web-step-split" : "grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]"}>
+                  <div>
+                    <div className={web ? "web-bags-head" : "flex items-start justify-between gap-3"}>
+                      <div>
+                        <h3 className={web ? "web-review-title" : "text-lg font-semibold"}>Seats and bags</h3>
+                        <p className={web ? "web-review-sub" : "mt-1 text-xs text-[var(--muted)]"}>Optional — your fare is complete without them.</p>
+                      </div>
+                      {seat || extra ? (
+                        <p className={web ? "web-note" : "text-xs text-[var(--muted)]"}>
+                          {(seat ? 1 : 0) + (extra ? 1 : 0)} extra · + {money((Number(seat?.price) || 0) + (Number(extra?.price) || 0), seat?.currency || extra?.currency || fare?.price?.currency)}
+                        </p>
+                      ) : null}
                     </div>
-                    {orderedRows.map(([row, items]) => {
-                      const byColumn = new Map(items.map((item) => [item.column, item]));
-                      return (
-                        <div key={row} className={web ? "web-cabin-row" : "mt-1.5 grid items-center justify-center gap-1.5"} style={{ gridTemplateColumns: cabin.template }}>
-                          <span className={web ? "web-row-no" : "text-[0.65rem] text-[var(--muted)]"}>{row}</span>
-                          {cabin.columns.map((column) => {
-                            const item = byColumn.get(column);
-                            const chosenSeat = item && item.available && seat?.serviceId === item.serviceId;
-                            const tone = !item
-                              ? (web ? "web-seat is-empty" : "h-7 w-7 rounded-[7px] border border-dashed border-[var(--line)]")
-                              : !item.available
-                                ? (web ? "web-seat is-taken" : "h-7 w-7 cursor-not-allowed rounded-[7px] bg-white/20")
-                                : chosenSeat
-                                  ? (web ? "web-seat is-on" : "h-7 w-7 rounded-[7px] bg-[var(--gold)]")
-                                  : item.kind === "exit_row"
-                                    ? (web ? "web-seat is-exit" : "h-7 w-7 rounded-[7px] bg-emerald-200")
-                                    : (web ? "web-seat" : "h-7 w-7 rounded-[7px] bg-white/80");
-                            return (
-                              <span key={column} style={{ display: "contents" }}>
-                                {cabin.aisleBefore.has(column) ? <span /> : null}
-                                {item ? (
-                                  <button
-                                    type="button"
-                                    disabled={!item.available}
-                                    aria-label={item.available ? `Seat ${item.number}${item.price ? `, ${money(item.price, item.currency)}` : ""}` : `Seat ${item.number} is already booked`}
-                                    title={item.available ? (item.price ? `${item.number} · ${money(item.price, item.currency)}` : item.number) : `${item.number} already booked`}
-                                    className={tone}
-                                    onClick={() => item.available && setSeat(chosenSeat ? null : item)}
-                                  />
-                                ) : (
-                                  <span className={tone} />
-                                )}
-                              </span>
-                            );
-                          })}
+                    <p className={web ? "web-note" : "mt-2 text-xs text-[var(--muted)]"}>
+                      {[fare?.from && fare?.to ? `${fare.from} → ${fare.to}` : "", fare?.flight, when(travelDate)].filter(Boolean).join(" · ")}
+                    </p>
+                    <div className={web ? "web-pick-line" : "mt-4 flex items-center justify-between gap-3 text-sm"}>
+                      <span className={web ? "web-review-kicker" : "text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]"}>Seat</span>
+                      <span>
+                        {seat ? `Seat ${seat.number}` : "Not chosen"}
+                        {seat && seat.price != null ? `  ${money(seat.price, seat.currency)}` : ""}
+                      </span>
+                    </div>
+                    {orderedRows.length ? (
+                      <div className={web ? "web-seat-tools" : "mt-3 flex items-center justify-between gap-3 text-xs text-[var(--muted)]"}>
+                        <span>{openSeats} selectable seats</span>
+                        <button
+                          type="button"
+                          className={web ? "web-jump" : "rounded-full border border-[var(--line)] px-3 py-1"}
+                          onClick={() => {
+                            const row = orderedRows.find(([, items]) => items.some((item) => item.available))?.[0];
+                            cabinRef.current?.querySelector(`[data-row="${row}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+                          }}
+                        >
+                          Jump to row {orderedRows.find(([, items]) => items.some((item) => item.available))?.[0] || orderedRows[0][0]}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className={web ? "web-note" : "mt-3 text-sm text-[var(--muted)]"}>No seat map for this fare</p>
+                    )}
+                    {orderedRows.length ? (
+                      <div className={web ? "web-legend" : "mt-2 flex flex-wrap gap-3 text-[0.65rem] text-[var(--muted)]"}>
+                        <span><i className={web ? "is-exit" : "mr-1 inline-block h-3 w-3 rounded-sm bg-amber-200"} /> Exit row</span>
+                        <span><i className={web ? "is-seat" : "mr-1 inline-block h-3 w-3 rounded-sm bg-white/80"} /> Standard</span>
+                        <span><i className={web ? "is-taken" : "mr-1 inline-block h-3 w-3 rounded-sm bg-white/25"} /> Unavailable</span>
+                      </div>
+                    ) : null}
+                    {orderedRows.length ? (
+                      <div ref={cabinRef} className={web ? "web-cabin" : "mt-3 max-h-80 overflow-auto rounded-2xl border border-[var(--line)] px-2 py-3"}>
+                        <div className={web ? "web-cabin-row is-letters" : "mb-2 grid items-center justify-center gap-1.5 text-center text-[0.65rem] text-[var(--muted)]"} style={{ gridTemplateColumns: cabin.template }}>
+                          <span />
+                          {cabin.columns.map((column) => (
+                            <span key={column} style={{ display: "contents" }}>
+                              {cabin.aisleBefore.has(column) ? <span /> : null}
+                              <span>{column}</span>
+                            </span>
+                          ))}
                         </div>
-                      );
-                    })}
+                        {orderedRows.map(([row, items]) => {
+                          const byColumn = new Map(items.map((item) => [item.column, item]));
+                          const exitRow = items.some((item) => item.kind === "exit_row");
+                          return (
+                            <div key={row} data-row={row} className={web ? "web-cabin-row" : "mt-1.5 grid items-center justify-center gap-1.5"} style={{ gridTemplateColumns: cabin.template }}>
+                              <span className={web ? "web-row-no" : "text-[0.65rem] text-[var(--muted)]"}>
+                                {exitRow ? <em>Exit</em> : null}
+                                {row}
+                              </span>
+                              {cabin.columns.map((column) => {
+                                const item = byColumn.get(column);
+                                const chosenSeat = item && item.available && seat?.serviceId === item.serviceId;
+                                const tone = !item
+                                  ? (web ? "web-seat is-empty" : "h-8 w-8 rounded-[7px] border border-dashed border-[var(--line)]")
+                                  : !item.available
+                                    ? (web ? "web-seat is-taken" : "h-8 w-8 cursor-not-allowed rounded-[7px] bg-white/20")
+                                    : chosenSeat
+                                      ? (web ? "web-seat is-on" : "h-8 w-8 rounded-[7px] bg-black text-[0.55rem] text-white")
+                                      : item.kind === "exit_row"
+                                        ? (web ? "web-seat is-exit" : "h-8 w-8 rounded-[7px] bg-amber-200")
+                                        : (web ? "web-seat" : "h-8 w-8 rounded-[7px] bg-violet-100");
+                                return (
+                                  <span key={column} style={{ display: "contents" }}>
+                                    {cabin.aisleBefore.has(column) ? <span /> : null}
+                                    {item ? (
+                                      <button
+                                        type="button"
+                                        disabled={!item.available}
+                                        aria-label={item.available ? `Seat ${item.number}${item.price != null ? `, ${money(item.price, item.currency)}` : ""}` : `Seat ${item.number} is unavailable`}
+                                        title={item.available ? (item.price != null ? `${item.number} · ${money(item.price, item.currency)}` : item.number) : `${item.number} unavailable`}
+                                        className={tone}
+                                        onClick={() => item.available && setSeat(chosenSeat ? null : item)}
+                                      >
+                                        {chosenSeat ? item.number : ""}
+                                      </button>
+                                    ) : (
+                                      <span className={tone} />
+                                    )}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {orderedRows.length ? <p className={web ? "web-note" : "mt-3 text-sm text-[var(--muted)]"}>Choose a seat — or skip; extras are optional.</p> : null}
+                    {held?.extras?.length ? (
+                      <div className={web ? "web-extras" : "mt-4 grid gap-2"}>
+                        <p className={web ? "web-review-kicker" : "text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]"}>Bags</p>
+                        {held.extras.map((item) => {
+                          const on = extra?.serviceId === item.serviceId;
+                          const piece = bagPiece(item.name);
+                          return (
+                            <div key={item.serviceId} className={web ? "web-bag" : "flex items-center justify-between gap-3 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm"}>
+                              <div>
+                                <p>{item.name}</p>
+                                {piece ? <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>{piece}</p> : null}
+                              </div>
+                              <div className={web ? "web-bag-step" : "flex items-center gap-2"}>
+                                <button type="button" disabled={!on} aria-label={`Remove ${item.name}`} onClick={() => setExtra(null)}>−</button>
+                                <button type="button" aria-label={`Add ${item.name}`} onClick={() => setExtra(on ? null : item)}>+ {money(item.price, item.currency)}</button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {seat || extra ? (
+                      <div className={web ? "web-added" : "mt-4 grid gap-2 text-sm"}>
+                        <p className={web ? "web-review-kicker" : "text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]"}>Added</p>
+                        {seat ? (
+                          <p className={web ? "web-added-row" : "flex items-center justify-between gap-3"}>
+                            <span>Seat {seat.number}</span>
+                            <span>{seat.price != null ? money(seat.price, seat.currency) : ""}</span>
+                            <button type="button" aria-label={`Remove seat ${seat.number}`} onClick={() => setSeat(null)}>×</button>
+                          </p>
+                        ) : null}
+                        {extra ? (
+                          <p className={web ? "web-added-row" : "flex items-center justify-between gap-3"}>
+                            <span>{extra.name}</span>
+                            <span>{extra.price != null ? money(extra.price, extra.currency) : ""}</span>
+                            <button type="button" aria-label={`Remove ${extra.name}`} onClick={() => setExtra(null)}>×</button>
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-                {orderedRows.length || seat ? (
-                  <p className={web ? "web-seat-pick" : "mt-3 text-sm"}>
-                    {seat
-                      ? `Seat ${seat.number}${seat.price ? ` · ${money(seat.price, seat.currency)}` : ""}`
-                      : "Tap an open seat, or continue without one. Booked seats cannot be selected."}
-                  </p>
-                ) : (
-                  <p className={web ? "web-note" : "mt-3 text-sm text-[var(--muted)]"}>
-                    {held?.extras?.length
-                      ? "This fare has no seats to choose. Continue to review, or add a bag below."
-                      : "This fare has no seats to choose. Continue to review."}
-                  </p>
-                )}
-                {held?.extras?.length ? (
-                  <div className={web ? "web-extras" : "mt-4 grid gap-2"}>
-                    <p className={web ? "" : "text-sm"}>Extra bags</p>
-                    {held.extras.map((item) => (
-                      <button
-                        key={item.serviceId}
-                        type="button"
-                        className={extra?.serviceId === item.serviceId ? (web ? "web-extra is-on" : "flex items-center justify-between rounded-2xl border border-[var(--gold)] px-3 py-2 text-left text-sm") : (web ? "web-extra" : "flex items-center justify-between rounded-2xl border border-[var(--line)] px-3 py-2 text-left text-sm")}
-                        onClick={() => setExtra(extra?.serviceId === item.serviceId ? null : item)}
-                      >
-                        <span>{item.name}</span>
-                        <span>+ {money(item.price, item.currency)}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                <div className={web ? "web-sheet-actions" : "mt-4 flex justify-between"}>
+                  <FareSummary
+                    web={web}
+                    fare={fare}
+                    held={held}
+                    seat={seat}
+                    extra={extra}
+                    partyCount={partyCount}
+                    travelDate={travelDate}
+                    totalLabel={seat || extra ? "Estimated total" : "Current total"}
+                    clockLabel="Checkout window remaining"
+                    picksOnTotal
+                    confirmExtras
+                  />
+                </div>
+                <div className={web ? "web-sheet-actions is-end" : "mt-4 flex justify-end gap-3"}>
                   <button type="button" className={web ? "web-text-btn" : "text-xs"} onClick={() => setStep("traveler")}>Back</button>
                   <button type="button" disabled={busy} className={web ? "web-next" : "rounded-full bg-[var(--gold)] px-4 py-2 text-sm text-black disabled:opacity-50"} onClick={keepSeat}>
-                    {busy ? "Adding the seat…" : "Continue to review"}
+                    {busy ? "Adding…" : seat || extra ? "Continue to review" : "Skip to review"}
                   </button>
                 </div>
               </div>
@@ -1087,6 +1307,7 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
 
             {step === "review" ? (
               <div>
+                <QuoteBar fare={fare} held={held} seat={seat} extra={extra} travelDate={travelDate} totalLabel="Total due" clockLabel="Checkout window remaining" />
                 <ReviewBody
                   web={web}
                   people={people}
@@ -1109,6 +1330,7 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
 
             {step === "pay" ? (
               <div>
+                <QuoteBar fare={fare} held={held} seat={seat} extra={extra} travelDate={travelDate} totalLabel="Total due" clockLabel="Checkout window remaining" />
                 <p className={web ? "" : "text-sm"}>Pay securely</p>
                 <p className={web ? "web-note" : "mt-1 text-xs text-[var(--muted)]"}>
                   The card goes straight to the booking partner. {money(held?.total || fare?.price?.total, held?.currency || fare?.price?.currency)} is the amount they will request.
@@ -1152,6 +1374,7 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
                 </div>
               </div>
             ) : null}
+            </div>
           </div>
         </div>
       ) : null}
