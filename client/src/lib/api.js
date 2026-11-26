@@ -13,7 +13,7 @@ import {
   profileLine,
 } from "./prompts.js";
 import { applyStyleBudget } from "./styleBudget.js";
-import { currentRegion, geminiAllowed } from "./region.js";
+import { currentRegion } from "./region.js";
 import { getAuthToken, getChats, getProfile, getTrips, getVisitorId } from "./storage.js";
 
 function apiUrl(path) {
@@ -68,13 +68,6 @@ async function apiFetch(path, options = {}) {
     json: async () => parseBody(await res.text()),
     body: res.body,
   };
-}
-
-function ensureGemini() {
-  if (currentRegion() === "IN" || geminiAllowed()) return;
-  const error = new Error("Subscribe to plan a trip or ask Safar.");
-  error.status = 402;
-  throw error;
 }
 
 function activityHeaders() {
@@ -273,7 +266,6 @@ export async function fetchIncomingShare(id) {
 }
 
 export async function askSafar({ messages, profile, onDelta }) {
-  ensureGemini();
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
       messages: messages.slice(-16),
@@ -412,6 +404,7 @@ async function createPlanOnServer(payload) {
   if (!res.ok) {
     const error = new Error(data.error || "Safar could not build this plan.");
     error.status = res.status;
+    error.code = data.code || "";
     throw error;
   }
   if (!data?.plan) throw new Error("Safar could not build this plan.");
@@ -419,7 +412,6 @@ async function createPlanOnServer(payload) {
 }
 
 export async function createPlan(payload) {
-  ensureGemini();
   try {
     return await createPlanOnServer(payload);
   } catch (err) {
@@ -538,7 +530,6 @@ export async function listTickets() {
 }
 
 export async function suggestFlights(journey) {
-  ensureGemini();
   const brief = flightPicksBrief(journey);
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
@@ -560,7 +551,6 @@ export async function suggestFlights(journey) {
 }
 
 export async function refreshDays(payload) {
-  ensureGemini();
   const res = await apiFetch("/api/travel/days/refresh", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...activityHeaders() },
@@ -574,7 +564,6 @@ export async function refreshDays(payload) {
 }
 
 export async function rewriteDay(payload) {
-  ensureGemini();
   const dayNumber = Number(payload?.dayNumber);
   const note = String(payload?.comment || "").trim();
   const otherDays = Array.isArray(payload?.otherDays) ? payload.otherDays : [];
@@ -618,7 +607,6 @@ export async function rewriteDay(payload) {
 }
 
 export async function suggestWeekend(profile) {
-  ensureGemini();
   if (hasDirectGemini()) {
     const { text } = await generateDirect({
       messages: [

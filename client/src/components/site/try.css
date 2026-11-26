@@ -67,7 +67,14 @@
 .web-steps li span { width: 0.9rem; text-align: center; }
 .web-steps li.is-on { color: var(--ink); }
 .web-steps li.is-done { color: var(--gold); }
-.web-error { color: #8d3b32; }
+.web-error {
+  margin: 0;
+  color: #8d3b32;
+  background: #f8e8e4;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.web-app { display: none; }
 .web-quiet {
   margin-top: 18px;
   border: 0;
@@ -206,6 +213,7 @@
 }
 
 .web-rail-top { display: grid; gap: 8px; }
+.web-nav { display: contents; }
 .web-rail-top .web-solid,
 .web-rail-top .web-ghost { width: 100%; text-align: center; }
 
@@ -310,7 +318,14 @@
   letter-spacing: -0.03em;
   line-height: 1.15;
 }
+.web-hello-lead {
+  margin: 8px 0 0;
+  color: var(--soft);
+  font-size: 0.95rem;
+}
 .web-hello .web-compose { margin: 22px 0 0; width: 100%; }
+.web-rail-actions { display: contents; }
+.web-menu { display: none; }
 .web-ideas {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -949,13 +964,190 @@
 .web-book-steps .is-done .web-step-check { display: block; }
 
 @media (max-width: 800px) {
-  .web { grid-template-columns: 1fr; }
-  .web-rail { height: auto; position: static; border-right: 0; border-bottom: 1px solid var(--line); }
-  .web-rail-scroll { max-height: 220px; }
-  .web-ask { height: auto; min-height: 70dvh; }
-  .web-compose { margin-left: 16px; margin-right: 16px; }
-  .web-hello .web-compose { margin-left: 0; margin-right: 0; }
-  .web-ideas { grid-template-columns: 1fr 1fr; }
+  .web {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    background: var(--paper);
+  }
+  .web-rail {
+    height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    padding: 14px 16px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    background: rgba(244, 239, 230, 0.94);
+    backdrop-filter: blur(18px);
+  }
+  .web-rail-top {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px 10px;
+    width: 100%;
+  }
+  .web-mark { font-size: 1.85rem; }
+  .web-rail-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .web-menu { display: block; position: relative; }
+  .web button.web-avatar {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .web-menu-card {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 220px;
+    padding: 12px 14px 8px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(23, 21, 18, 0.14);
+    text-align: left;
+    z-index: 3;
+  }
+  .web-menu-card strong { display: block; font-weight: 560; }
+  .web-menu-card span {
+    display: block;
+    margin-top: 2px;
+    color: var(--soft);
+    font-size: 0.78rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .web-menu-card button,
+  .web-menu-card a {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    background: transparent;
+    text-align: left;
+    color: var(--ink);
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  .web-menu-card .is-quiet { color: var(--gold); }
+  .web-nav {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    padding: 3px;
+    border-radius: 12px;
+    background: rgba(23, 21, 18, 0.06);
+  }
+  .web .web-nav button.web-solid,
+  .web .web-nav button.web-ghost {
+    width: 100%;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    padding: 8px 0;
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--soft);
+  }
+  .web .web-nav button.web-solid {
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(23, 21, 18, 0.08);
+  }
+  .web a.web-app {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(23, 21, 18, 0.16);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink);
+    padding: 7px 11px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .web-rail-scroll,
+  .web-kicker,
+  .web-account { display: none; }
+  .web-main { width: 100%; min-width: 0; background: var(--paper); }
+  .web-ask {
+    height: auto;
+    min-height: 0;
+    background: var(--paper);
+  }
+  .web-ask header, .web-panel { padding: 18px 16px 0; }
+  .web-ask h1, .web-panel h1 { font-size: 2rem; }
+  .web-thread { padding: 14px 16px 12px; }
+  .web-you, .web-safar { max-width: 88%; }
+  .web-ask > .web-compose {
+    position: sticky;
+    bottom: 0;
+    margin: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .web-hello { text-align: left; }
+  .web-hello h1 {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 500;
+    font-size: 2.35rem;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+  }
+  .web-hello-lead { margin-top: 8px; font-size: 0.92rem; }
+  .web-hello .web-compose {
+    position: static;
+    margin: 18px 0 0;
+    border: 1px solid rgba(23, 21, 18, 0.1);
+    border-radius: 18px;
+    background: var(--card);
+    box-shadow: 0 8px 24px rgba(23, 21, 18, 0.04);
+    padding: 6px 6px 6px 16px;
+  }
+  .web-ideas { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .web-idea {
+    min-height: 0;
+    padding: 13px 12px 14px;
+    background: var(--card);
+    border: 1px solid rgba(23, 21, 18, 0.08);
+    border-radius: 16px;
+    text-align: left;
+  }
+  .web-idea strong { margin-top: 10px; font-size: 0.9rem; letter-spacing: -0.02em; }
+  .web-idea span { margin-top: 3px; font-size: 0.78rem; }
+  .web-more {
+    display: inline-flex;
+    margin-top: 14px;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: transparent;
+    font-size: 0.82rem;
+  }
   .web-trip li { grid-template-columns: 1fr; }
   .web-review, .web-step-split { grid-template-columns: 1fr; }
   .web-sheet { padding: 0; place-items: end; }

@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { requireAuth } from "../lib/auth.js";
 import { isPlayProduct, verifyPlaySubscription } from "../lib/play.js";
-import { getUser, saveSubscription, subscriptionView } from "../lib/users.js";
+import { getUser, saveSubscription, subscriptionView, tripAllowance } from "../lib/users.js";
 
 const router = Router();
 
 router.get("/status", requireAuth, async (req, res, next) => {
   try {
     const user = await getUser(req.user.uid);
-    res.json({ subscription: subscriptionView(user) });
+    res.json({ subscription: subscriptionView(user), trips: tripAllowance(user) });
   } catch (err) {
     next(err);
   }
@@ -24,7 +24,7 @@ router.post("/verify", requireAuth, async (req, res, next) => {
     const subscription = await verifyPlaySubscription(productId, purchaseToken);
     await saveSubscription(req.user.uid, subscription);
     const user = await getUser(req.user.uid);
-    res.json({ subscription: subscriptionView(user) });
+    res.json({ subscription: subscriptionView(user), trips: tripAllowance(user) });
   } catch (err) {
     next(err);
   }

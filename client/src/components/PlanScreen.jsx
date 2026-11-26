@@ -5,7 +5,9 @@ import { rememberPlace } from "../lib/placeHistory.js";
 import { formatTripSpan, travelerLine, tomorrowIso, tripEndIso } from "../lib/dates.js";
 import { emptyPicks, pickCount, togglePick } from "../lib/links.js";
 import { uid } from "../lib/storage.js";
+import { useAccess } from "../lib/access.jsx";
 import { useTravel } from "../lib/TravelContext.jsx";
+import { SubscribeScreen } from "./SubscribeScreen.jsx";
 import { parseModes } from "../lib/transport.js";
 import { parseStays, toggleStay } from "../lib/stays.js";
 import { DestinationSuggest } from "./DestinationSuggest.jsx";
@@ -18,6 +20,8 @@ const STYLES = ["Balanced", "Luxury", "Budget", "Adventure", "Family", "Honeymoo
 
 export function PlanScreen() {
   const { profile, addTrip } = useTravel();
+  const { canCreateTrip, tripsLeft, subscription, markTripUsed } = useAccess();
+  const [paywall, setPaywall] = useState(false);
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const incoming = params.get("q") || "";
@@ -100,6 +104,11 @@ export function PlanScreen() {
 
   const generate = async () => {
     setError("");
+    if (!canCreateTrip) {
+      markTripUsed();
+      setPaywall(true);
+      return;
+    }
     if (form.modes.length && !form.origin.trim()) {
       setError("Add the city you are leaving from so Safar can compare train, flight, and bus fares.");
       return;
@@ -158,6 +167,11 @@ export function PlanScreen() {
       setStep("itinerary");
       if (!nextCatalog) setError("Plan is ready. Live hotels could not load — you can still save.");
     } catch (err) {
+      if (err.status === 402 || err.code === "subscription") {
+        markTripUsed();
+        setPaywall(true);
+        return;
+      }
       setError(err.message || "Could not create this plan. Check your connection and try again.");
     } finally {
       setBusy(false);
@@ -186,6 +200,8 @@ export function PlanScreen() {
     addTrip(trip);
     navigate(`/trips/${trip.id}`);
   };
+
+  if (paywall && !subscription?.active) return <SubscribeScreen />;
 
   if (step === "picks") {
     return (
@@ -301,6 +317,15 @@ export function PlanScreen() {
         and bus with a booking link. Hotels are optional after that. Plans are AI-generated and can be wrong. Visa steps
         are for you to file — we do not apply for you.
         {profile.nationality ? ` Advice uses a ${profile.nationality} passport.` : ""}
+      </p>
+      <p className="mt-2 text-sm text-[var(--gold)]">
+        {subscription?.active
+          ? "Your subscription creates unlimited trips."
+          : tripsLeft === 1
+            ? "1 free trip left this month."
+            : tripsLeft === 0
+              ? "Both free trips this month are used."
+              : "2 free trips left this month."}
       </p>
 
       <form

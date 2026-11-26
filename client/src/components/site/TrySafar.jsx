@@ -21,7 +21,9 @@ import { budgetLabel } from "../../lib/styleBudget.js";
 import { STAY_STANDARDS, staySearchUrl, toggleStay } from "../../lib/stays.js";
 import { getChats, uid } from "../../lib/storage.js";
 import { buildJourney, TRANSPORT_MODES } from "../../lib/transport.js";
+import { useAccess } from "../../lib/access.jsx";
 import { useTravel } from "../../lib/TravelContext.jsx";
+import { SubscribeScreen } from "../SubscribeScreen.jsx";
 import { AskSteps } from "../AskSteps.jsx";
 import { FlightBook, FlightIssue } from "../FlightBook.jsx";
 import { TicketList } from "../TicketList.jsx";
@@ -256,6 +258,50 @@ function Setup({ travel }) {
   );
 }
 
+function AccountMenu({ account, profile, onPeople, signOut }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const initial = String(profile?.name || account?.email || "S").trim().charAt(0).toUpperCase() || "S";
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+
+  return (
+    <div className="web-menu" ref={rootRef}>
+      <button type="button" className="web-avatar" aria-label="Account" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        {initial}
+      </button>
+      {open ? (
+        <div className="web-menu-card">
+          <strong>{profile?.name || "Signed in"}</strong>
+          {account?.email ? <span>{account.email}</span> : null}
+          {account?.isAdmin ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onPeople();
+              }}
+            >
+              People
+            </button>
+          ) : null}
+          <a href={PLAY_STORE_URL}>Get the app</a>
+          <button type="button" className="is-quiet" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function Desk({ travel }) {
   const { profile, account, chats, trips, addChat, addTrip, signOut } = travel;
   const [section, setSection] = useState("ask");
@@ -317,15 +363,28 @@ function Desk({ travel }) {
           <Link to="/" className="web-mark">
             Safar
           </Link>
-          <button type="button" className="web-solid" onClick={() => openChat("")}>
-            New question
-          </button>
-          <button type="button" className={section === "plan" ? "web-ghost is-on" : "web-ghost"} onClick={() => setSection("plan")}>
-            Plan a trip
-          </button>
-          <button type="button" className={section === "tickets" ? "web-ghost is-on" : "web-ghost"} onClick={() => setSection("tickets")}>
-            Tickets
-          </button>
+          <div className="web-rail-actions">
+            <a className="web-app" href={PLAY_STORE_URL}>
+              Get the app
+            </a>
+            <AccountMenu
+              account={account}
+              profile={profile}
+              onPeople={() => setSection("people")}
+              signOut={signOut}
+            />
+          </div>
+          <div className="web-nav">
+            <button type="button" className={section === "ask" ? "web-solid" : "web-ghost"} onClick={() => openChat("")}>
+              Ask
+            </button>
+            <button type="button" className={section === "plan" ? "web-solid" : "web-ghost"} onClick={() => setSection("plan")}>
+              Plan
+            </button>
+            <button type="button" className={section === "tickets" ? "web-solid" : "web-ghost"} onClick={() => setSection("tickets")}>
+              Tickets
+            </button>
+          </div>
         </div>
         <div className="web-rail-scroll">
           <p className="web-kicker">Questions</p>
@@ -447,6 +506,7 @@ function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSen
         {empty ? (
           <div className="web-hello">
             <h1>Where should we go next?</h1>
+            <p className="web-hello-lead">A place, a stay, or the way there.</p>
             {compose}
             <div className="web-ideas">
               {ASK_IDEAS[ideaSet].map((idea) => (
@@ -656,6 +716,8 @@ function IdeaIcon({ name }) {
 const TRIP_STYLES = ["Balanced", "Luxury", "Budget", "Adventure", "Family", "Honeymoon"];
 
 function PlanForm({ profile, onSaved }) {
+  const { canCreateTrip, tripsLeft, subscription, markTripUsed } = useAccess();
+  const [paywall, setPaywall] = useState(false);
   const [form, setForm] = useState({
     origin: profile.homeCity || "",
     destination: "",
@@ -679,6 +741,11 @@ function PlanForm({ profile, onSaved }) {
   const submit = async (event) => {
     event.preventDefault();
     if (!form.destination.trim() || busy) return;
+    if (!canCreateTrip) {
+      markTripUsed();
+      setPaywall(true);
+      return;
+    }
     if (form.modes.length && !form.origin.trim()) {
       setError("Add the city you are leaving from so Safar can compare train, flight, and bus fares.");
       return;
@@ -743,16 +810,32 @@ function PlanForm({ profile, onSaved }) {
         },
       });
     } catch (err) {
-      setError(err.message || "Safar could not build this plan.");
+      if (err.status === 402 || err.code === "subscription") {
+        markTripUsed();
+        setPaywall(true);
+      } else {
+        setError(err.message || "Safar could not build this plan.");
+      }
       setBusy(false);
       setPhase("");
     }
   };
 
+  if (paywall && !subscription?.active) return <SubscribeScreen />;
+
   return (
     <section className="web-panel">
       <h1>Plan a trip</h1>
       <p>The same questions as the app. Safar writes the days and saves the trip on your account.</p>
+      <p>
+        {subscription?.active
+          ? "Your subscription creates unlimited trips."
+          : tripsLeft === 1
+            ? "1 free trip left this month."
+            : tripsLeft === 0
+              ? "Both free trips this month are used."
+              : "2 free trips left this month."}
+      </p>
       <form className="web-form web-plan" onSubmit={submit}>
         <PlaceField
           label="Leaving from"

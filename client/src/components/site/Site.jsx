@@ -10,6 +10,11 @@ const STEPS = [
     body: "A city, a month, who is coming, and what the days should feel like. Safar names the trip and answers in plain words.",
   },
   {
+    kicker: "Book",
+    title: "Book the flight in the same conversation.",
+    body: "Pick the date, the travelers, and the fare. Add a seat or a bag only if you want one. The card goes to the booking partner. Safar never sees it or stores it, and the airline code stays with the ticket.",
+  },
+  {
     kicker: "Buy",
     title: "Ask for the thing, then answer a few choices.",
     body: "A shirt, a bag, a pair of shoes. Safar asks size, style, and budget, then opens two or three products that match. You pay on Amazon.",
@@ -160,7 +165,7 @@ function Header() {
     <header className={`site-header${scrolled ? " is-scrolled" : ""}`}>
       <div className="site-announcement">
         <span>New</span>
-        <a href="#product">Ask Safar what to buy</a>
+        <a href="#product">Book the flight in Safar</a>
       </div>
       <div className="site-bar">
         <Link to="/" className="site-mark" aria-label="Safar, home">
@@ -172,6 +177,12 @@ function Header() {
           <Link to="/privacy">Privacy</Link>
         </nav>
         <div className="site-bar-actions">
+          <a className="site-chip" href={PLAY_STORE_URL}>
+            Get the app
+          </a>
+          <Link to="/try" className="site-chip site-chip-strong">
+            Try Safar
+          </Link>
           <Link to="/try" className="site-pill site-pill-live">
             <PillStars />
             <span>Try Safar</span>
@@ -211,8 +222,15 @@ function Header() {
   );
 }
 
+const BOOK = "Delhi to Lucknow this Friday. Just me.";
 const ASK = "Udaipur in December. Two of us. Rooftops, the lake, and one long lunch.";
 const BUY = "A full sleeve 100% cotton t-shirt";
+const FILM_BOOK = [
+  ["Fare", "The live fare, with the bags and the rules that came with it."],
+  ["Travelers", "The name and date of birth, the way the airline asks for them."],
+  ["Seats", "Optional. The fare is complete if you skip the seat and the bag."],
+  ["Pay", "The booking partner takes the card. Safar never sees it or stores it."],
+];
 const BUY_PRODUCTS = [
   ["Aventura full sleeve, 100% cotton", "4.4 stars · ₹499"],
   ["Combed cotton plain long sleeve", "4.1 stars · ₹455"],
@@ -232,17 +250,20 @@ function Hero() {
         </span>
       </h1>
       <p className="site-lede">
-        Ask for a city, a weekend, or a month away. Or ask for a shirt to pack. Safar asks a few choices, then opens the days, the stay, and the products that match.
+        Ask for a city, a weekend, or a month away. Safar writes the days, then books the flight with you. The card is handled by the booking partner. Safar never sees it.
       </p>
       <div className="site-cta-row">
-        <a className="site-cta site-pill-live" href={PLAY_STORE_URL}>
+        <Link to="/try" className="site-cta site-pill-live">
           <PillStars />
-          <span>Get the app</span>
+          <span>Try Safar</span>
           <Plane />
+        </Link>
+        <a className="site-cta site-cta-ghost" href={PLAY_STORE_URL}>
+          Get the app
         </a>
       </div>
       <p className="site-fine">
-        Plans stay on your phone. Stays, tables, and the way there open in the site or app that books them.
+        The plan stays on your phone. Flights are booked here. Stays, tables, and things you buy open on the partner’s site.
       </p>
       <Film />
       <a className="site-down" href="#product">
@@ -256,7 +277,7 @@ function Hero() {
 }
 
 function Film() {
-  const [act, setAct] = useState("trip");
+  const [act, setAct] = useState("book");
   const [beat, setBeat] = useState(0);
   const [typed, setTyped] = useState("");
   const [picked, setPicked] = useState("");
@@ -264,9 +285,9 @@ function Film() {
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
-      setAct("buy");
-      setBeat(4);
-      setPicked("Plain crew neck");
+      setAct("book");
+      setBeat(6);
+      setPicked("");
       setTyped("");
       return undefined;
     }
@@ -284,6 +305,30 @@ function Film() {
     };
     const play = async () => {
       while (alive) {
+        setAct("book");
+        setPicked("");
+        setBeat(0);
+        await typeLine(BOOK);
+        if (!alive) return;
+        setBeat(1);
+        await wait(420);
+        if (!alive) return;
+        setTyped("");
+        setBeat(2);
+        await wait(800);
+        if (!alive) return;
+        setBeat(3);
+        await wait(1500);
+        if (!alive) return;
+        setBeat(4);
+        await wait(1500);
+        if (!alive) return;
+        setBeat(5);
+        await wait(1500);
+        if (!alive) return;
+        setBeat(6);
+        await wait(1900);
+        if (!alive) return;
         setAct("trip");
         setPicked("");
         setBeat(0);
@@ -348,12 +393,46 @@ function Film() {
         <span />
         <p>safarfoundation.com</p>
       </div>
-      <div className={act === "buy" ? "site-film-app is-buy" : "site-film-app"}>
+      <div className={`site-film-app${act === "buy" ? " is-buy" : act === "book" ? " is-book" : ""}`}>
         <div className="site-film-bar">
           <span>Safar</span>
-          <span>{act === "buy" ? "Buy" : "Udaipur · December"}</span>
+          <span>{act === "buy" ? "Buy" : act === "book" ? "Book" : "Udaipur · December"}</span>
         </div>
         <div className="site-film-thread">
+          {act === "book" && beat >= 1 ? (
+            <p className="site-film-you" key="book-you">{BOOK}</p>
+          ) : null}
+          {act === "book" && beat === 2 ? (
+            <p className="site-film-typing" key="book-typing">
+              <i />
+              <i />
+              <i />
+            </p>
+          ) : null}
+          {act === "book" && beat >= 3 ? (
+            <article className="site-book" key="book-card">
+              <p className="site-scene-label">One way</p>
+              <h3>Delhi to Lucknow</h3>
+              <ol className="site-book-steps">
+                {FILM_BOOK.map(([label], index) => {
+                  const step = beat - 3;
+                  return (
+                    <li key={label} className={index < step ? "is-done" : index === step ? "is-on" : ""}>
+                      <span>{index < step ? "✓" : index + 1}</span>
+                      {label}
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="site-book-line" key={`book-line-${beat}`}>
+                <strong>{FILM_BOOK[Math.min(beat - 3, FILM_BOOK.length - 1)][0]}</strong>
+                {FILM_BOOK[Math.min(beat - 3, FILM_BOOK.length - 1)][1]}
+              </p>
+            </article>
+          ) : null}
+          {act === "book" && beat >= 6 ? (
+            <p className="site-film-note">The airline code is saved with the ticket.</p>
+          ) : null}
           {act === "trip" && beat >= 1 ? (
             <p className="site-film-you" key={`you-${beat < 2 ? "send" : "sent"}`}>{ASK}</p>
           ) : null}
@@ -417,7 +496,7 @@ function Film() {
             : null}
         </div>
         <div className="site-film-compose">
-          <p>{typed || (beat === 0 ? "" : act === "buy" ? "Anything else? Optional" : "Ask for another day")}<i /></p>
+          <p>{typed || (beat === 0 ? "" : act === "buy" ? "Anything else? Optional" : act === "book" ? "Book the flight" : "Ask for another day")}<i /></p>
           <span>Send</span>
         </div>
         <div className={`site-film-cursor is-${beat}`}>
@@ -560,7 +639,7 @@ function Theater() {
         <div className="site-frame" aria-live="polite">
           <div className="site-frame-bar">
             <span>Safar</span>
-            <span>{active === 1 ? "Buy" : "Udaipur · December"}</span>
+            <span>{active === 1 ? "Book" : active === 2 ? "Buy" : "Udaipur · December"}</span>
           </div>
           <Scene index={active} />
         </div>
@@ -570,12 +649,57 @@ function Theater() {
 }
 
 function Scene({ index }) {
-  if (index === 1) return <BuyScene />;
-  if (index === 2) return <DaysScene />;
-  if (index === 3) return <StayScene />;
-  if (index === 4) return <DinnerScene />;
-  if (index === 5) return <SavedScene />;
+  if (index === 1) return <BookScene />;
+  if (index === 2) return <BuyScene />;
+  if (index === 3) return <DaysScene />;
+  if (index === 4) return <StayScene />;
+  if (index === 5) return <DinnerScene />;
+  if (index === 6) return <SavedScene />;
   return <AskScene />;
+}
+
+const BOOK_STEPS = [
+  ["Fare", "The live fare, with the bags and the change rules that came with it."],
+  ["Travelers", "The name and date of birth, the way the airline asks for them."],
+  ["Seats", "Optional. The fare is complete if you skip the seat and the bag."],
+  ["Pay", "The booking partner takes the card. Safar never sees it or stores it."],
+];
+
+function BookScene() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setStep(BOOK_STEPS.length - 1);
+      return undefined;
+    }
+    const id = window.setInterval(() => {
+      setStep((current) => (current + 1) % BOOK_STEPS.length);
+    }, 1800);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div className="site-scene" key="book">
+      <article className="site-book">
+        <p className="site-scene-label">One way</p>
+        <h3>Delhi to Lucknow</h3>
+        <ol className="site-book-steps">
+          {BOOK_STEPS.map(([label], index) => (
+            <li key={label} className={index < step ? "is-done" : index === step ? "is-on" : ""}>
+              <span>{index < step ? "✓" : index + 1}</span>
+              {label}
+            </li>
+          ))}
+        </ol>
+        <p className="site-book-line" key={step}>
+          <strong>{BOOK_STEPS[step][0]}</strong>
+          {BOOK_STEPS[step][1]}
+        </p>
+      </article>
+      <p className="site-partner">A finished payment is a real ticket. The airline code is saved in Safar.</p>
+    </div>
+  );
 }
 
 function BuyScene() {
@@ -773,10 +897,13 @@ function Close() {
       <h2>Say where you want to be.</h2>
       <p>A beach week, a city you have saved for years, or dinner in a place you already know.</p>
       <div className="site-cta-row">
-        <a className="site-cta site-pill-live" href={PLAY_STORE_URL}>
+        <Link to="/try" className="site-cta site-pill-live">
           <PillStars />
-          <span>Get the app</span>
+          <span>Try Safar</span>
           <Plane />
+        </Link>
+        <a className="site-cta site-cta-ghost" href={PLAY_STORE_URL}>
+          Get the app
         </a>
       </div>
     </section>
@@ -801,7 +928,7 @@ function Footer() {
         <Link to="/privacy">Privacy policy</Link>
       </div>
       <p className="site-footer-note">
-        Safar plans the trip and opens partner sites for stays, tables, and things you buy. It does not take the payment. © {new Date().getFullYear()} Safar
+        Safar plans the trip and books the flight with the booking partner. Stays, tables, and things you buy open on the partner’s site. Safar does not take the card. © {new Date().getFullYear()} Safar
       </p>
     </footer>
   );
