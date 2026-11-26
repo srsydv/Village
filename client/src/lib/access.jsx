@@ -1,34 +1,34 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { fetchBillingStatus } from "./api.js";
-import { allowGemini, detectRegion } from "./region.js";
 import { useTravel } from "./TravelContext.jsx";
 
 const AccessContext = createContext(null);
+const OPEN_TRIPS = { used: 0, limit: 2, allowed: true };
 
 export function AccessProvider({ children }) {
   const { signedIn } = useTravel();
   const [ready, setReady] = useState(false);
-  const [region, setRegion] = useState("");
-  const [subscription, setSubscription] = useState(null);
+  const [subscription, setSubscriptionState] = useState(null);
+  const [trips, setTrips] = useState(OPEN_TRIPS);
 
   useEffect(() => {
     let cancel = false;
     setReady(false);
     (async () => {
-      const code = await detectRegion();
       let next = null;
+      let allowance = OPEN_TRIPS;
       if (signedIn) {
         try {
           const status = await fetchBillingStatus();
           next = status.subscription || null;
+          if (status.trips) allowance = status.trips;
         } catch {
           next = null;
         }
       }
       if (cancel) return;
-      allowGemini(code === "IN" || Boolean(next?.active));
-      setRegion(code);
-      setSubscription(next);
+      setSubscriptionState(next);
+      setTrips(allowance);
       setReady(true);
     })();
     return () => {
@@ -37,18 +37,24 @@ export function AccessProvider({ children }) {
   }, [signedIn]);
 
   const value = useMemo(() => {
-    const entitled = region === "IN" || Boolean(subscription?.active);
+    const active = Boolean(subscription?.active);
+    const limit = trips.limit || 2;
+    const used = trips.used || 0;
     return {
       ready,
-      region,
       subscription,
-      entitled,
+      entitled: true,
+      canCreateTrip: active || trips.allowed !== false,
+      tripsLeft: active ? null : Math.max(0, limit - used),
       setSubscription(next) {
-        allowGemini(region === "IN" || Boolean(next?.active));
-        setSubscription(next);
+        setSubscriptionState(next);
+        if (next?.active) setTrips((current) => ({ ...current, allowed: true }));
+      },
+      markTripUsed() {
+        setTrips((current) => ({ ...current, used: current.limit || 2, allowed: false }));
       },
     };
-  }, [ready, region, subscription]);
+  }, [ready, subscription, trips]);
 
   return <AccessContext.Provider value={value}>{children}</AccessContext.Provider>;
 }

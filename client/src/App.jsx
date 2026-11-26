@@ -15,7 +15,6 @@ import { ServiceWorkerRegister } from "./components/ServiceWorkerRegister.jsx";
 import { TripDetail, SharedTripDetail } from "./components/TripDetail.jsx";
 import { TripsScreen } from "./components/TripsScreen.jsx";
 import { useTravel } from "./lib/TravelContext.jsx";
-import { GeminiGate } from "./components/SubscribeScreen.jsx";
 import { Site } from "./components/site/Site.jsx";
 import { TrySafar } from "./components/site/TrySafar.jsx";
 
@@ -25,9 +24,10 @@ export default function App() {
   const isAdmin = Boolean(account?.isAdmin);
   const adminView = pathname.startsWith("/admin");
 
+  const webApp = window.location.hostname === "app.safarfoundation.com";
   if (pathname === "/" || pathname === "/try") {
     if (window.Capacitor?.isNativePlatform?.()) return <Navigate to="/welcome" replace />;
-    if (pathname === "/try") return <TrySafar />;
+    if (pathname === "/try" || (webApp && pathname === "/")) return <TrySafar />;
     return <Site />;
   }
 
@@ -47,12 +47,12 @@ export default function App() {
           <Route element={ready ? <AppShell /> : <Navigate to="/welcome" replace />}>
             <Route path="/home" element={<HomeScreen />} />
             <Route path="/explore" element={<ExploreScreen />} />
-            <Route path="/plan" element={<GeminiGate><PlanScreen /></GeminiGate>} />
+            <Route path="/plan" element={<PlanScreen />} />
             <Route path="/choose" element={<ChooseScreen />} />
             <Route path="/trips" element={<TripsScreen />} />
             <Route path="/trips/shared/:shareId" element={<SharedTripDetail />} />
             <Route path="/trips/:id" element={<TripDetail />} />
-            <Route path="/ask" element={<GeminiGate><ChatScreen /></GeminiGate>} />
+            <Route path="/ask" element={<ChatScreen />} />
             <Route path="/profile" element={<PrivacyScreen />} />
             <Route path="/admin" element={isAdmin ? <AdminScreen /> : <Navigate to="/home" replace />} />
             <Route path="/admin/users/:id" element={isAdmin ? <AdminUserScreen /> : <Navigate to="/home" replace />} />

@@ -32,6 +32,8 @@ function allowedOrigins() {
     "capacitor://localhost",
     "https://safar.local",
     "https://app.safartravel.app",
+    "https://safarfoundation.com",
+    "https://app.safarfoundation.com",
   ]);
   const extra = `${process.env.CORS_ORIGINS || ""},${process.env.PUBLIC_APP_URL || ""}`;
   for (const origin of extra.split(",")) {

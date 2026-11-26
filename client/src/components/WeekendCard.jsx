@@ -1,32 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAccess } from "../lib/access.jsx";
 import { suggestWeekend } from "../lib/api.js";
 import { readWeekend, writeWeekend } from "../lib/weekend.js";
 
 export function WeekendCard({ profile = {} }) {
   const navigate = useNavigate();
-  const { ready, entitled } = useAccess();
   const homeCity = String(profile?.homeCity || "").trim();
   const [idea, setIdea] = useState(() => (homeCity ? readWeekend(homeCity) : null));
   const [status, setStatus] = useState(() => (homeCity && readWeekend(homeCity) ? "ready" : homeCity ? "loading" : "need-city"));
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!ready) return undefined;
     if (!homeCity) {
       setStatus("need-city");
       setIdea(null);
-      return undefined;
-    }
-    if (!entitled) {
-      const cached = readWeekend(homeCity);
-      if (cached) {
-        setIdea(cached);
-        setStatus("ready");
-      } else {
-        setStatus("locked");
-      }
       return undefined;
     }
     const cached = readWeekend(homeCity);
@@ -53,21 +40,7 @@ export function WeekendCard({ profile = {} }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, entitled, homeCity, profile.currency, profile.nationality, profile]);
-
-  if (status === "locked") {
-    return (
-      <section className="card mt-5 rounded-[1.4rem] p-4">
-        <p className="kicker">This weekend</p>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-          A subscription includes weekend ideas, trip plans, and questions.
-        </p>
-        <Link to="/plan" className="mt-3 inline-block text-sm text-[var(--gold)]">
-          See plans
-        </Link>
-      </section>
-    );
-  }
+  }, [homeCity, profile.currency, profile.nationality, profile]);
 
   if (status === "need-city") {
     return (

@@ -15,24 +15,9 @@ import {
 import { applyStyleBudget, styleGuide } from "../../client/src/lib/styleBudget.js";
 import { findGeneratedPlan, listPlansForPlace, planMatchesRequest, saveGeneratedPlan } from "../lib/planCache.js";
 import { composeFromLibrary, daysFromPatch, departureMatches, lockedBrief, mergeGap, namesCity, refreshDaysFromLibrary } from "../lib/planPieces.js";
-import { getUser, subscriptionView } from "../lib/users.js";
+import { releaseTripSlot, takeTripSlot } from "../lib/users.js";
 
 const router = Router();
-
-router.use(async (req, res, next) => {
-  try {
-    const region = String(req.get("x-safar-region") || "").trim().toUpperCase();
-    if (region === "IN") return next();
-    if (!req.user?.uid) {
-      return res.status(402).json({ error: "Subscribe to plan a trip or ask Safar.", code: "subscription" });
-    }
-    const user = await getUser(req.user.uid);
-    if (subscriptionView(user)) return next();
-    return res.status(402).json({ error: "Subscribe to plan a trip or ask Safar.", code: "subscription" });
-  } catch (err) {
-    return next(err);
-  }
-});
 
 function profileLine(profile, { includeName = true } = {}) {
   if (!profile || typeof profile !== "object") return "";
@@ -193,7 +178,9 @@ router.post("/plan", async (req, res) => {
     .filter(Boolean)
     .join("\n");
 
+  let slot = null;
   try {
+    slot = await takeTripSlot(req.user?.uid);
     const saved = await findGeneratedPlan(req.body || {});
     const askedOrigin = origin || profile?.homeCity;
     if (saved?.plan && departureMatches(saved.plan, askedOrigin)) {
@@ -242,6 +229,7 @@ router.post("/plan", async (req, res) => {
     recordBuiltPlan(req, plan, model, false);
     return res.json({ plan, model });
   } catch (err) {
+    if (slot?.reserved) await releaseTripSlot(req.user.uid, slot).catch(() => {});
     logActivity(req, {
       action: "plan",
       query: String(destination).trim(),
@@ -269,6 +257,7 @@ router.post("/plan", async (req, res) => {
         err instanceof SyntaxError
           ? "Safar drafted a plan but it could not be formatted. Please try again."
           : err.message || "Safar could not build this plan.",
+      ...(err.code ? { code: err.code } : {}),
     });
   }
 });

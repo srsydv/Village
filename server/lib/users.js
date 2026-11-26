@@ -71,6 +71,82 @@ export function subscriptionView(doc) {
   return { active: true, productId: sub.productId, expiresAt: sub.expiresAt };
 }
 
+export const FREE_TRIPS_PER_MONTH = 2;
+
+function monthKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return `${year}-${month}`;
+}
+
+export function tripAllowance(doc) {
+  const month = monthKey();
+  const used = (Array.isArray(doc?.tripCreates) ? doc.tripCreates : []).filter((item) => item?.month === month).length;
+  const active = Boolean(subscriptionView(doc));
+  return {
+    used,
+    limit: FREE_TRIPS_PER_MONTH,
+    month,
+    allowed: active || used < FREE_TRIPS_PER_MONTH,
+  };
+}
+
+export async function takeTripSlot(uid) {
+  if (!uid || !ObjectId.isValid(uid)) {
+    const err = new Error("Sign in to create a trip.");
+    err.status = 401;
+    throw err;
+  }
+  const month = monthKey();
+  const at = new Date();
+  const user = await getUser(uid);
+  if (subscriptionView(user)) return { reserved: false, month, at };
+  const col = await usersCol();
+  const updated = await col.findOneAndUpdate(
+    {
+      _id: new ObjectId(uid),
+      $expr: {
+        $lt: [
+          {
+            $size: {
+              $filter: {
+                input: { $ifNull: ["$tripCreates", []] },
+                as: "item",
+                cond: { $eq: ["$$item.month", month] },
+              },
+            },
+          },
+          FREE_TRIPS_PER_MONTH,
+        ],
+      },
+    },
+    { $push: { tripCreates: { month, at } } },
+    { returnDocument: "after" },
+  );
+  const doc = updated?.value || updated;
+  if (!doc) {
+    const err = new Error("Two free trips are included each month. Subscribe to create another.");
+    err.status = 402;
+    err.code = "subscription";
+    throw err;
+  }
+  return { reserved: true, month, at };
+}
+
+export async function releaseTripSlot(uid, slot) {
+  if (!slot?.reserved || !uid || !ObjectId.isValid(uid)) return;
+  const col = await usersCol();
+  await col.updateOne(
+    { _id: new ObjectId(uid) },
+    { $pull: { tripCreates: { month: slot.month, at: slot.at } } },
+  );
+}
+
 export async function saveSubscription(uid, subscription) {
   if (!ObjectId.isValid(uid)) return null;
   const col = await usersCol();

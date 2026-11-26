@@ -67,8 +67,7 @@ export function SubscribeScreen() {
       <p className="kicker">Safar</p>
       <h1 className="serif mt-2 text-[2.2rem] leading-tight font-semibold">Plan and ask with Safar</h1>
       <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
-        Outside India, a subscription covers trip plans and questions. The home screen stays open either way.
-        If you are in India, allow location when Android asks. Plan and Ask stay free there.
+        Two new trips each month are free. Subscribe to create more. Asking Safar stays free.
       </p>
       {!signedIn ? (
         <div className="mt-6">
@@ -96,14 +95,5 @@ export function SubscribeScreen() {
 }
 
 export function GeminiGate({ children }) {
-  const { ready, entitled } = useAccess();
-  if (!ready) {
-    return (
-      <div className="grid min-h-[50vh] place-items-center">
-        <p className="kicker">Safar</p>
-      </div>
-    );
-  }
-  if (!entitled) return <SubscribeScreen />;
   return children;
 }
