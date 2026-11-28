@@ -13,6 +13,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "google-auth-library": "^11.1.0",
-    "mongodb": "^7.6.0"
+    "mongodb": "^7.6.0",
+    "pdfkit": "^0.21.0"
   }
 }

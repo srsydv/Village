@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { askSafar, suggestFlights } from "../lib/api.js";
-import { ASK_IDEAS, readOffer, replySteps } from "../lib/askOffers.js";
+import { ASK_IDEAS, readOffer, replySteps, shownReply, stayAsk, stayNote, stayReply } from "../lib/askOffers.js";
 import { chatPreview, planSeedFromChat } from "../lib/chatHints.js";
 import { timeAgo, tomorrowIso } from "../lib/dates.js";
 import { placeLinks, STAY_PARTNERS } from "../lib/links.js";
@@ -14,6 +14,8 @@ import { ConfirmDialog } from "./ConfirmDialog.jsx";
 import { AskSteps } from "./AskSteps.jsx";
 import { ProductFinder } from "./ProductFinder.jsx";
 import { FlightBook, FlightIssue } from "./FlightBook.jsx";
+import { HotelBook, HotelIssue, StayRail } from "./HotelBook.jsx";
+import { beginLocationRequest } from "../lib/region.js";
 
 export function ChatScreen() {
   const { profile, chats, addChat, removeChat } = useTravel();
@@ -28,12 +30,35 @@ export function ChatScreen() {
     return found?.messages || [];
   });
   const [draft, setDraft] = useState("");
+  const [placePromise, setPlacePromise] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(openHistory);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [ideaSet, setIdeaSet] = useState(0);
+  const [savedStays, setSavedStays] = useState([]);
+  const [openStay, setOpenStay] = useState(null);
+  const [mapPlace, setMapPlace] = useState(null);
+  const [railTab, setRailTab] = useState("shortlisted");
+  const [tripRange, setTripRange] = useState(null);
   const scroller = useRef(null);
+  const draftRef = useRef(null);
+  function saveStay(stay) {
+    setSavedStays((list) => (
+      list.some((item) => item.hotelId === stay.hotelId)
+        ? list.filter((item) => item.hotelId !== stay.hotelId)
+        : [stay, ...list]
+    ));
+    setRailTab("shortlisted");
+  }
+  function showMap(place) {
+    setMapPlace(place);
+    setRailTab("map");
+  }
+  function askAbout(text) {
+    setDraft(text);
+    draftRef.current?.focus();
+  }
   const asked = useRef(false);
 
   const persist = (next, id = chatId) => {
@@ -70,10 +95,14 @@ export function ChatScreen() {
   const send = async (text) => {
     const content = String(text || "").trim();
     if (!content || busy) return;
+    const stay = stayAsk(content);
+    if (stay?.nearby) setPlacePromise(beginLocationRequest());
+    else setPlacePromise(null);
     setError("");
     setDraft("");
     const next = [...messages, { role: "user", content }];
     persist(next);
+    if (stayReply(content)) return;
     setBusy(true);
     const assistant = { role: "assistant", content: "" };
     persist([...next, assistant]);
@@ -177,6 +206,7 @@ export function ChatScreen() {
 
       <div className="flight-ui">
         <FlightIssue variant="web" />
+        <HotelIssue variant="web" onTickets={() => navigate("/trips")} />
       </div>
 
       <div ref={scroller} className="no-scrollbar flex-1 overflow-y-auto px-5 pb-2">
@@ -209,34 +239,75 @@ export function ChatScreen() {
         <div className="space-y-3 pb-4">
           {messages.map((m, i) => {
             const question = [...messages.slice(0, i)].reverse().find((item) => item.role === "user")?.content || "";
+            if (m.role === "assistant" && (stayAsk(question) || stayNote(m.content))) return null;
+            if (m.role === "assistant" && !m.content) {
+              return (
+                <article key={`${m.role}-${i}`} className="card mr-4 rounded-[1.2rem] px-4 py-3 text-sm">
+                  <AskSteps variant="app" steps={replySteps(question)} />
+                </article>
+              );
+            }
             return (
-            <article
-              key={`${m.role}-${i}`}
-              className={
-                m.role === "user"
-                  ? "ml-8 rounded-[1.2rem] bg-[linear-gradient(180deg,#e8c99a,#c9a36a)] px-4 py-3 text-sm text-[#1a140c]"
-                  : "card mr-4 rounded-[1.2rem] px-4 py-3 text-sm"
-              }
-            >
-              {m.role === "assistant" ? (
-                m.content ? (
+              <article
+                key={`${m.role}-${i}`}
+                className={
+                  m.role === "user"
+                    ? "ml-8 rounded-[1.2rem] bg-[linear-gradient(180deg,#e8c99a,#c9a36a)] px-4 py-3 text-sm text-[#1a140c]"
+                    : "card mr-4 rounded-[1.2rem] px-4 py-3 text-sm"
+                }
+              >
+                {m.role === "assistant" ? (
                   <>
-                    <ChatOffers question={question} profile={profile} live={i === messages.length - 1} />
-                    <RichText text={m.content} />
+                    <RichText text={shownReply(question, m.content)} />
+                    <ChatOffers question={question} profile={profile} live={i === messages.length - 1} stayLive={false} />
                     <ProductFinder question={question} saved={chats.find((item) => item.id === chatId)?.shops?.[question]} onSave={(answers) => saveShop(question, answers)} />
                   </>
                 ) : (
-                  <AskSteps
-                    variant="app"
-                    steps={replySteps(question)}
-                  />
-                )
-              ) : (
-                m.content
-              )}
-            </article>
+                  m.content
+                )}
+              </article>
             );
           })}
+          {(() => {
+            let stayAt = -1;
+            for (let index = messages.length - 1; index >= 0; index -= 1) {
+              if (messages[index].role === "user" && stayAsk(messages[index].content)) {
+                stayAt = index;
+                break;
+              }
+            }
+            const asked = stayAt >= 0 ? messages[stayAt] : null;
+            const stay = asked ? stayAsk(asked.content) : null;
+            if (!stay) return null;
+            return (
+              <div className="flight-ui" data-stay-card data-stay-city={stay.city || ""}>
+                <HotelBook
+                  key={`${stayAt}-${asked.content}`}
+                  city={stay.city}
+                  nearby={stay.nearby}
+                  placePromise={stay.nearby ? placePromise : null}
+                  onAsk={askAbout}
+                  saved={savedStays}
+                  onSave={saveStay}
+                  openStay={openStay}
+                  onOpened={() => setOpenStay(null)}
+                  onShowMap={showMap}
+                  onRange={setTripRange}
+                />
+                <StayRail
+                  place={savedStays.find((item) => item.city)?.city || stay.city || ""}
+                  stays={savedStays}
+                  range={tripRange}
+                  mapPlace={mapPlace}
+                  tab={railTab}
+                  onTab={setRailTab}
+                  onOpen={setOpenStay}
+                  onRemove={saveStay}
+                  onAsk={askAbout}
+                />
+              </div>
+            );
+          })()}
         </div>
         {seed && (
           <button
@@ -262,6 +333,7 @@ export function ChatScreen() {
       >
         <div className="glass flex items-end gap-2 rounded-[1.4rem] px-3 py-2">
           <textarea
+            ref={draftRef}
             rows={1}
             className="max-h-28 min-h-11 w-full resize-none bg-transparent py-2.5 text-sm outline-none placeholder:text-[#6d7588]"
             placeholder="Ask anything…"
@@ -346,7 +418,7 @@ export function ChatScreen() {
   );
 }
 
-function ChatOffers({ question, profile, live }) {
+function ChatOffers({ question, profile, live, stayLive = false }) {
   const offer = readOffer(question);
   const [picks, setPicks] = useState(null);
   const [note, setNote] = useState("");
@@ -380,6 +452,8 @@ function ChatOffers({ question, profile, live }) {
   }, [live, flight, offer?.from, offer?.to, profile?.currency]);
 
   if (!offer) return null;
+  const stayOnly = Boolean((offer.stayCity || offer.stayNearby) && !(offer.from && offer.to) && !offer.foodCity && !offer.sightCity);
+  if (stayOnly && !stayLive) return null;
   const board = offer?.from && offer.to && offer.modes.length
     ? buildJourney({
         from: offer.from,

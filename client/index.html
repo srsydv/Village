@@ -40,6 +40,23 @@
         root.textContent = String(message || "Safar could not start.");
       };
     </script>
+    <script>
+      (function () {
+        if (!("serviceWorker" in navigator)) return;
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          if (!regs.length) return;
+          return Promise.all(regs.map(function (reg) { return reg.unregister(); })).then(function () {
+            if (!window.caches || sessionStorage.getItem("safar.sw-cleared")) return;
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (key) { return caches.delete(key); }));
+            }).then(function () {
+              sessionStorage.setItem("safar.sw-cleared", "1");
+              location.reload();
+            });
+          });
+        }).catch(function () {});
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

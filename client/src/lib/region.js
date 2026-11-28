@@ -130,6 +130,49 @@ async function readPosition() {
   });
 }
 
+function placeFrom(pos) {
+  const latitude = Number(pos?.coords?.latitude);
+  const longitude = Number(pos?.coords?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    throw new Error("Safar could not read this location.");
+  }
+  return { latitude, longitude };
+}
+
+export function beginLocationRequest() {
+  const native = window.Capacitor?.isNativePlatform?.() ? window.Capacitor?.Plugins?.Geolocation : null;
+  if (native?.getCurrentPosition) {
+    return (async () => {
+      try {
+        await native.requestPermissions({ permissions: ["location"] });
+      } catch {
+        // getCurrentPosition shows the same system prompt if that call was skipped.
+      }
+      return placeFrom(await native.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }));
+    })();
+  }
+  if (!navigator.geolocation) {
+    return Promise.reject(new Error("This browser cannot share location."));
+  }
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        try {
+          resolve(placeFrom(pos));
+        } catch (err) {
+          reject(err);
+        }
+      },
+      reject,
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 },
+    );
+  });
+}
+
+export async function currentPosition() {
+  return beginLocationRequest();
+}
+
 async function resolveRegion() {
   try {
     const pos = await readPosition();

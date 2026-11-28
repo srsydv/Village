@@ -13,6 +13,7 @@ import adminRouter from "./routes/admin.js";
 import billingRouter from "./routes/billing.js";
 import shopRouter from "./routes/shop.js";
 import flightsRouter from "./routes/flights.js";
+import hotelsRouter from "./routes/hotels.js";
 
 const ROOT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(ROOT_DIR, ".env") });
@@ -98,6 +99,7 @@ app.use("/api/travel", travelRouter);
 app.use("/api/places", placesRouter);
 app.use("/api/shop", shopRouter);
 app.use("/api/flights", flightsRouter);
+app.use("/api/hotels", hotelsRouter);
 
 app.use((err, _req, res, next) => {
   if (res.headersSent) return next(err);

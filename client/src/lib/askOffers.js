@@ -201,11 +201,12 @@ export function readOffer(raw) {
   const inCity = text.match(/\bin\s+([A-Za-z][A-Za-z .'-]{1,40})/i);
   const city = inCity ? tidy(inCity[1]) : "";
   const stayHit = /\b(hotel|hotels|stay|stays|hostel|guesthouse|resort)\b/.test(lower);
+  const stayNearby = stayHit && /\b(near\s*by(?:\s+me)?|nearby(?:\s+me)?|near me|around me|around here|close to me|close by)\b/.test(lower);
   const foodHit = /\b(eat|food|restaurant|restaurants|dinner|lunch|breakfast|cafe)\b/.test(lower);
   const sightHit = /\b(temple|temples|sight|sights|things to do|what to do|visit)\b/.test(lower);
-  const stayCity = stayHit ? city || to : "";
+  const stayCity = stayHit && !stayNearby ? city || to : "";
   const placeCity = foodHit || sightHit ? city || to : "";
-  if (!((from && to && modes.length) || stayCity || placeCity)) return null;
+  if (!((from && to && modes.length) || stayCity || stayNearby || placeCity)) return null;
 
   const stayIds = [];
   if (stayCity) {
@@ -223,8 +224,54 @@ export function readOffer(raw) {
     to,
     modes,
     stayCity,
+    stayNearby,
     stayIds,
     foodCity: foodHit ? placeCity : "",
     sightCity: sightHit ? placeCity : "",
   };
+}
+
+const STAY_WORD = /\b(hotels?|stays?|rooms?|hostels?|guesthouses?|resorts?|accommodations?|lodging)\b/i;
+const STAY_TYPO = /\b(hotals|hotal|hotles|hotle|hotls|hotl|hotell|htels|htel|hote)\b/gi;
+const NEARBY_WORD = /\b(near\s*by(?:\s+me)?|nearby(?:\s+me)?|near me|around me|around here|close to me|close by)\b/i;
+
+function tidyPlace(value) {
+  return String(value || "")
+    .replace(/\b(for|with|on|this|next|tomorrow|tonight|please|around|about)\b.*$/i, "")
+    .replace(/[?.!,].*$/, "")
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word && !/^(a|an|the|please|show|find|book|cheap|best|me)$/i.test(word))
+    .join(" ")
+    .slice(0, 40);
+}
+
+export function stayAsk(raw) {
+  const text = String(raw || "")
+    .replace(STAY_TYPO, (word) => (/s$/i.test(word) ? "hotels" : "hotel"))
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text || !STAY_WORD.test(text)) return null;
+  const nearby = NEARBY_WORD.test(text);
+  if (nearby) return { city: "", nearby: true };
+  const named = text.match(/\b(?:in|at)\s+([A-Za-z][A-Za-z .'-]{1,40})/i);
+  const lead = text.match(/^([A-Za-z][A-Za-z .'-]{1,40}?)\s+(?:hotels?|stays?|rooms?|hostels?|resorts?)\b/i);
+  return { city: tidyPlace(named?.[1] || lead?.[1] || ""), nearby: false };
+}
+
+export function stayReply(raw) {
+  const stay = stayAsk(raw);
+  if (!stay) return "";
+  if (stay.nearby) return "Allow location, then enter how far, the dates, how many people, and your budget.";
+  return "Enter the dates, how many people, and your budget.";
+}
+
+export function stayNote(content) {
+  const text = String(content || "").replace(/\s+/g, " ").trim();
+  return /^(use the stay box|enter the dates, how many people|allow location, then enter how far)/i.test(text);
+}
+
+export function shownReply(question, content) {
+  if (stayAsk(question) || stayNote(content)) return "";
+  return content;
 }

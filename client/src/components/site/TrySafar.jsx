@@ -12,7 +12,7 @@ import {
   suggestFlights,
   suggestPlaces,
 } from "../../lib/api.js";
-import { ASK_IDEAS, readOffer, replySteps } from "../../lib/askOffers.js";
+import { ASK_IDEAS, readOffer, replySteps, shownReply, stayAsk, stayNote, stayReply } from "../../lib/askOffers.js";
 import { formatTripSpan, tomorrowIso, travelerLine, tripEndIso } from "../../lib/dates.js";
 import { placeLinks, PLAY_STORE_URL, STAY_PARTNERS } from "../../lib/links.js";
 import { CURRENCY_OPTIONS, PASSPORT_OPTIONS } from "../../lib/profileOptions.js";
@@ -26,6 +26,8 @@ import { useTravel } from "../../lib/TravelContext.jsx";
 import { SubscribeScreen } from "../SubscribeScreen.jsx";
 import { AskSteps } from "../AskSteps.jsx";
 import { FlightBook, FlightIssue } from "../FlightBook.jsx";
+import { HotelBook, HotelIssue, StayRail } from "../HotelBook.jsx";
+import { beginLocationRequest } from "../../lib/region.js";
 import { TicketList } from "../TicketList.jsx";
 import { ProductFinder } from "../ProductFinder.jsx";
 import "./try.css";
@@ -339,6 +341,7 @@ function Desk({ travel }) {
       addChat({ ...existing, id, updatedAt: Date.now(), messages: thread, shops: existing.shops });
     };
     writeChat(next);
+    if (stayReply(content)) return;
     setBusy(true);
     try {
       const full = await askSafar({
@@ -427,8 +430,10 @@ function Desk({ travel }) {
       </aside>
       <main className="web-main">
         <FlightIssue variant="web" onTicket={() => setSection("tickets")} />
+        <HotelIssue variant="web" onTickets={() => setSection("tickets")} />
         {section === "ask" ? (
           <Ask
+            key={chatId || "ask"}
             messages={messages}
             shops={chat?.shops || {}}
             onShop={(question, answers) => {
@@ -474,13 +479,43 @@ function Desk({ travel }) {
 
 function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSend, threadRef, profile }) {
   const [ideaSet, setIdeaSet] = useState(0);
+  const [placePromise, setPlacePromise] = useState(null);
+  const [savedStays, setSavedStays] = useState([]);
+  const [openStay, setOpenStay] = useState(null);
+  const [mapPlace, setMapPlace] = useState(null);
+  const [railTab, setRailTab] = useState("shortlisted");
+  const [tripRange, setTripRange] = useState(null);
+  const composeRef = useRef(null);
   const empty = messages.length === 0;
+  function saveStay(stay) {
+    setSavedStays((list) => (
+      list.some((item) => item.hotelId === stay.hotelId)
+        ? list.filter((item) => item.hotelId !== stay.hotelId)
+        : [stay, ...list]
+    ));
+    setRailTab("shortlisted");
+  }
+  function showMap(place) {
+    setMapPlace(place);
+    setRailTab("map");
+  }
+  function askAbout(text) {
+    setDraft(text);
+    composeRef.current?.querySelector("input")?.focus();
+  }
+  const sendDraft = (text) => {
+    const stay = stayAsk(text);
+    if (stay?.nearby) setPlacePromise(beginLocationRequest());
+    else setPlacePromise(null);
+    onSend(text);
+  };
   const compose = (
     <form
+      ref={composeRef}
       className="web-compose"
       onSubmit={(event) => {
         event.preventDefault();
-        onSend(draft);
+        sendDraft(draft);
       }}
     >
       <input
@@ -495,8 +530,20 @@ function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSen
     </form>
   );
 
+  let stayAt = -1;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role === "user" && stayAsk(messages[index].content)) {
+      stayAt = index;
+      break;
+    }
+  }
+  const askedStay = stayAt >= 0 ? messages[stayAt] : null;
+  const stayQuery = askedStay ? stayAsk(askedStay.content) : null;
+  const placeName = savedStays.find((item) => item.city)?.city || stayQuery?.city || "";
+  const showRail = Boolean(stayQuery || savedStays.length || mapPlace);
+
   return (
-    <section className={empty ? "web-ask is-empty" : "web-ask"}>
+    <section className={[empty ? "web-ask is-empty" : "web-ask", showRail ? "has-stays" : ""].filter(Boolean).join(" ")}>
       {empty ? null : (
         <header>
           <h1>Ask Safar</h1>
@@ -510,7 +557,7 @@ function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSen
             {compose}
             <div className="web-ideas">
               {ASK_IDEAS[ideaSet].map((idea) => (
-                <button key={idea.prompt} type="button" className="web-idea" onClick={() => onSend(idea.prompt)}>
+                <button key={idea.prompt} type="button" className="web-idea" onClick={() => sendDraft(idea.prompt)}>
                   <IdeaIcon name={idea.icon} />
                   <strong>{idea.title}</strong>
                   <span>{idea.prompt}</span>
@@ -524,19 +571,40 @@ function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSen
         ) : (
           messages.map((message, index) => {
             const question = [...messages.slice(0, index)].reverse().find((item) => item.role === "user")?.content || "";
-            return message.role === "user" ? (
-              <p key={`${index}-you`} className="web-you">
-                {message.content}
-              </p>
-            ) : (
+            if (message.role === "assistant" && (stayAsk(question) || stayNote(message.content))) return null;
+            if (message.role === "user") {
+              return (
+                <p key={`${index}-you`} className="web-you">
+                  {message.content}
+                </p>
+              );
+            }
+            return (
               <div key={`${index}-safar`} className="web-safar">
-                <AskOffers question={question} profile={profile} />
-                <RichText text={message.content} />
+                <RichText text={shownReply(question, message.content)} />
+                <AskOffers question={question} profile={profile} stayLive={false} />
                 <ProductFinder variant="web" question={question} saved={shops[question]} onSave={(answers) => onShop?.(question, answers)} />
               </div>
             );
           })
         )}
+        {stayQuery ? (
+            <div className="web-safar is-stay" data-stay-card data-stay-city={stayQuery.city || ""}>
+              <HotelBook
+                key={`${stayAt}-${askedStay.content}`}
+                city={stayQuery.city}
+                nearby={stayQuery.nearby}
+                placePromise={stayQuery.nearby ? placePromise : null}
+                onAsk={askAbout}
+                saved={savedStays}
+                onSave={saveStay}
+                openStay={openStay}
+                onOpened={() => setOpenStay(null)}
+                onShowMap={showMap}
+                onRange={setTripRange}
+              />
+            </div>
+        ) : null}
         {busy ? (
           <AskSteps
             steps={replySteps([...messages].reverse().find((item) => item.role === "user")?.content || "")}
@@ -544,12 +612,25 @@ function Ask({ messages, shops = {}, onShop, busy, error, draft, setDraft, onSen
         ) : null}
         {error ? <p className="web-error">{error}</p> : null}
       </div>
+      {showRail ? (
+        <StayRail
+          place={placeName}
+          stays={savedStays}
+          range={tripRange}
+          mapPlace={mapPlace}
+          tab={railTab}
+          onTab={setRailTab}
+          onOpen={setOpenStay}
+          onRemove={saveStay}
+          onAsk={askAbout}
+        />
+      ) : null}
       {empty ? null : compose}
     </section>
   );
 }
 
-function AskOffers({ question, profile }) {
+function AskOffers({ question, profile, stayLive = false }) {
   const offer = readOffer(question);
   const [picks, setPicks] = useState(null);
   const [note, setNote] = useState("");
@@ -584,6 +665,8 @@ function AskOffers({ question, profile }) {
   }, [flight, offer?.from, offer?.to, profile?.currency]);
 
   if (!offer) return null;
+  const stayOnly = Boolean((offer.stayCity || offer.stayNearby) && !(offer.from && offer.to) && !offer.foodCity && !offer.sightCity);
+  if (stayOnly && !stayLive) return null;
   const board = offer?.from && offer.to && offer.modes.length
     ? buildJourney({
         from: offer.from,

@@ -31,3 +31,8 @@ export function ticketsFor(owner) {
     .filter((item) => item.owner === owner)
     .sort((a, b) => String(b.bookedAt).localeCompare(String(a.bookedAt)));
 }
+
+export function ticketFor(owner, bookingId) {
+  if (!owner || !bookingId) return null;
+  return readAll().find((item) => item.owner === owner && item.bookingId === bookingId) || null;
+}

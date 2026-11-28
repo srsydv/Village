@@ -11,6 +11,7 @@ import {
 } from "../lib/api.js";
 import { formatDay } from "../lib/dates.js";
 import { useTravel } from "../lib/TravelContext.jsx";
+import { FlightLeg } from "./TicketList.jsx";
 import "./site/try.css";
 
 const STEPS = [
@@ -31,6 +32,22 @@ function duration(minutes) {
   const hours = Math.floor(total / 60);
   const mins = total % 60;
   return hours ? `${hours}h ${mins}m` : `${mins}m`;
+}
+
+function FlightLegs({ offer }) {
+  const legs = offer.legs?.length ? offer.legs : [offer];
+  const round = legs.length > 1;
+  return legs.map((leg, index) => {
+    const segments = leg.segments?.length ? leg.segments : [leg];
+    return (
+      <div key={`${leg.departAt || index}-${leg.from}-${leg.to}`} className="web-offer-leg">
+        {round ? <p className="web-offer-kicker">{index === 0 ? "Depart" : "Return"}</p> : null}
+        {segments.map((segment) => (
+          <FlightLeg key={`${segment.number || segment.from}-${segment.departAt}`} segment={segment} />
+        ))}
+      </div>
+    );
+  });
 }
 
 function when(iso) {
@@ -523,6 +540,8 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
   const [busy, setBusy] = useState(false);
   const [ticket, setTicket] = useState(null);
   const [tripDate, setTripDate] = useState(date || localToday());
+  const [returnDate, setReturnDate] = useState("");
+  const [tripType, setTripType] = useState("oneway");
   const [adults, setAdults] = useState(1);
   const [query, setQuery] = useState(null);
   const [people, setPeople] = useState(() => [
@@ -588,6 +607,7 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
       from,
       to,
       date: query.date,
+      returnDate: query.returnDate,
       adults: query.adults,
       currency: profile?.currency || "INR",
       home: profile?.homeCity || "",
@@ -816,13 +836,25 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
       onSubmit={(event) => {
         event.preventDefault();
         if (!tripDate) return;
+        if (tripType === "round" && (!returnDate || returnDate < tripDate)) {
+          setError("The return date has to be on or after the departure.");
+          return;
+        }
         setChosen(null);
         setError("");
-        setQuery({ date: tripDate, adults, at: Date.now() });
+        setQuery({ date: tripDate, returnDate: tripType === "round" ? returnDate : "", adults, at: Date.now() });
       }}
     >
-      <p className={web ? "" : "text-sm"}>One way · {from} → {to}</p>
-      <div className={web ? "web-trip-fields" : "mt-3 grid gap-3 sm:grid-cols-2"}>
+      <div className="web-trip-kind" role="group" aria-label="Trip type">
+        <button type="button" className={tripType === "oneway" ? "is-on" : ""} onClick={() => setTripType("oneway")}>One way</button>
+        <button type="button" className={tripType === "round" ? "is-on" : ""} onClick={() => {
+          setTripType("round");
+          setReturnDate((current) => (current && current >= tripDate ? current : tripDate));
+        }}
+        >Round trip</button>
+      </div>
+      <p className={web ? "" : "text-sm"}>{from} → {to}</p>
+      <div className={web ? `web-trip-fields${tripType === "round" ? " is-round" : ""}` : "mt-3 grid gap-3 sm:grid-cols-2"}>
         <label className={web ? "" : "grid gap-1 text-xs"}>
           Departure date
           <input
@@ -831,9 +863,26 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
             min={localToday()}
             className={web ? "" : "field"}
             value={tripDate}
-            onChange={(event) => setTripDate(event.target.value)}
+            onChange={(event) => {
+              const next = event.target.value;
+              setTripDate(next);
+              if (returnDate && returnDate < next) setReturnDate(next);
+            }}
           />
         </label>
+        {tripType === "round" ? (
+          <label className={web ? "" : "grid gap-1 text-xs"}>
+            Return date
+            <input
+              required
+              type="date"
+              min={tripDate || localToday()}
+              className={web ? "" : "field"}
+              value={returnDate}
+              onChange={(event) => setReturnDate(event.target.value)}
+            />
+          </label>
+        ) : null}
         <div className={web ? "" : "grid gap-1 text-xs"}>
           <span>Travelers</span>
           <div className={web ? "web-count" : "flex items-center gap-3"}>
@@ -853,6 +902,7 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
     return (
       <div ref={listRef} data-flights="true" className={web ? "web-flights" : "space-y-2"}>
         {ask}
+        {error ? <p className={web ? "web-error" : "text-xs text-[var(--rose)]"}>{error}</p> : null}
       </div>
     );
   }
@@ -903,22 +953,14 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
       ))}
       {offers?.length ? (
         <div className={web ? "web-flight-head" : "px-1"}>
-          <p className={web ? "" : "text-sm font-medium"}>Flights {offers[0].from} → {offers[0].to}</p>
-          <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>One way · {when(travelDate)}{offers[0].cabin ? ` · ${offers[0].cabin}` : ""} · {partyCount} traveler{partyCount === 1 ? "" : "s"}</p>
+          <p className={web ? "web-offer-title" : "text-sm font-medium"}>{offers[0].from} → {offers[0].to}</p>
+          <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>{query?.returnDate ? "Round trip" : "One way"} · {when(travelDate)}{query?.returnDate ? ` – ${when(query.returnDate)}` : ""}{offers[0].cabin ? ` · ${offers[0].cabin}` : ""} · {partyCount} traveler{partyCount === 1 ? "" : "s"}</p>
         </div>
       ) : null}
       {(offers || []).map((offer) => (
-        <div key={`${offer.departAt}-${offer.flight}-${offer.price.total}`} className={web ? "web-flight" : "rounded-2xl border border-[var(--line)] px-3 py-3"}>
-          <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>One way · {when(travelDate)}</p>
-          <p className={web ? "" : "mt-1 text-sm"}>{offer.airline}{offer.flight ? ` · ${offer.flight}` : ""}</p>
-          <div className={web ? "web-flight-line" : "mt-2 flex items-center gap-2 text-sm"}>
-            <strong>{offer.depart || "—"}</strong>
-            <span className={web ? "web-flight-rule" : "h-px flex-1 bg-[var(--line)]"} />
-            <span className={web ? "web-note" : "text-[0.65rem] text-[var(--muted)]"}>{duration(offer.minutes) || offer.stopLabel}</span>
-            <span className={web ? "web-flight-rule" : "h-px flex-1 bg-[var(--line)]"} />
-            <strong>{offer.arrive || "—"}</strong>
-          </div>
-          <p className={web ? "web-note" : "mt-1 text-[0.7rem] text-[var(--muted)]"}>{offer.from} → {offer.to} · {offer.stopLabel}</p>
+        <div key={`${offer.departAt}-${offer.legs?.[1]?.departAt || ""}-${offer.flight}-${offer.price.total}`} className={web ? "web-flight" : "rounded-2xl border border-[var(--line)] px-3 py-3"}>
+          <FlightLegs offer={offer} />
+          {offer.baggage?.length ? <p className={web ? "web-note" : "mt-2 text-[0.7rem] text-[var(--muted)]"}>{offer.baggage.join(" · ")}</p> : null}
           <button type="button" className={web ? "web-flight-book" : "mt-3 rounded-full bg-[var(--gold)] px-4 py-2 text-sm font-medium text-black"} onClick={() => openOffer(offer)}>
             Book from {money(offer.price.total, offer.price.currency)}
           </button>
@@ -938,7 +980,11 @@ export function FlightBook({ question = "", from, to, date, variant = "app", fra
                 <div>
                   <p className={web ? "" : "text-sm font-medium"}>{fare?.airline || chosen.airline}</p>
                   <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>
-                    {[`${fare?.from || chosen.from} → ${fare?.to || chosen.to}`, formatDay(travelDate)].filter(Boolean).join(" · ")}
+                    {[
+                      `${fare?.from || chosen.from} → ${fare?.to || chosen.to}`,
+                      fare?.legs?.length > 1 ? `Return ${formatDay(String(fare.legs[1].departAt || "").slice(0, 10))}` : "",
+                      formatDay(travelDate),
+                    ].filter(Boolean).join(" · ")}
                   </p>
                   {fare?.cabin ? <p className={web ? "web-note" : "text-[0.7rem] text-[var(--muted)]"}>{fare.cabin}</p> : null}
                 </div>

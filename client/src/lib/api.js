@@ -463,8 +463,8 @@ export async function flightStatus() {
   return { enabled: Boolean(data.enabled), sandbox: Boolean(data.sandbox) };
 }
 
-export async function searchLiveFlights({ from, to, date, adults, currency, home, question }) {
-  const payload = { from, to, date, adults, currency, home, question };
+export async function searchLiveFlights({ from, to, date, returnDate, adults, currency, home, question }) {
+  const payload = { from, to, date, returnDate, adults, currency, home, question };
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(payload)) {
     if (value) params.set(key, String(value));
@@ -523,10 +523,148 @@ export async function bookLiveFlight(payload) {
   return data.ticket;
 }
 
+export async function hotelStatus() {
+  const res = await apiFetch("/api/hotels/status", { headers: activityHeaders() });
+  const data = await res.json().catch(() => ({}));
+  return { enabled: Boolean(data.enabled), sandbox: Boolean(data.sandbox) };
+}
+
+export async function searchLiveHotels(payload) {
+  const res = await apiFetch("/api/hotels/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not load hotels.");
+  return data;
+}
+
+export async function hotelProfile(hotelId) {
+  const res = await apiFetch("/api/hotels/detail", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ hotelId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not load this hotel.");
+  return data.hotel || null;
+}
+
+export async function hotelRooms(payload) {
+  const res = await apiFetch("/api/hotels/rooms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Could not load rooms.");
+  return data;
+}
+
+export async function prebookLiveHotel(offerId) {
+  const res = await apiFetch("/api/hotels/prebook", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify({ offerId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "This room could not be held.");
+  return data;
+}
+
+export async function bookLiveHotel(payload) {
+  const res = await apiFetch("/api/hotels/book", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...activityHeaders() },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Payment finished, but the stay was not confirmed. Check your stays before paying again.");
+  return data.stay;
+}
+
+export async function listStays() {
+  const res = await apiFetch("/api/hotels/stays", { headers: activityHeaders() });
+  const data = await res.json().catch(() => ({}));
+  return Array.isArray(data.stays) ? data.stays : [];
+}
+
 export async function listTickets() {
   const res = await apiFetch("/api/flights/tickets", { headers: activityHeaders() });
   const data = await res.json().catch(() => ({}));
   return Array.isArray(data.tickets) ? data.tickets : [];
+}
+
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+export async function downloadTicketConfirmation(bookingId) {
+  const path = `/api/flights/tickets/${encodeURIComponent(bookingId)}/confirmation`;
+  const headers = activityHeaders();
+  const nativeHttp = isNativeApp() ? window.Capacitor?.Plugins?.CapacitorHttp : null;
+  if (nativeHttp) {
+    const result = await nativeHttp.request({
+      url: apiUrl(path),
+      method: "GET",
+      headers,
+      responseType: "blob",
+    });
+    if (result.status < 200 || result.status >= 300) {
+      const data = parseBody(result.data);
+      throw new Error(data?.error || "The confirmation could not be prepared.");
+    }
+    const binary = atob(result.data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const named = /filename="([^"]+)"/.exec(result.headers?.["Content-Disposition"] || result.headers?.["content-disposition"] || "");
+    saveBlob(new Blob([bytes], { type: "application/pdf" }), named?.[1] || "Safar-confirmation.pdf");
+    return;
+  }
+  const res = await fetch(apiUrl(path), { headers });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "The confirmation could not be prepared.");
+  }
+  const named = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "");
+  saveBlob(await res.blob(), named?.[1] || "Safar-confirmation.pdf");
+}
+
+export async function getTicketDetail(bookingId) {
+  const res = await apiFetch(`/api/flights/tickets/${encodeURIComponent(bookingId)}`, {
+    headers: activityHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "This ticket could not be opened.");
+  return data;
+}
+
+export async function quoteTicketCancellation(bookingId) {
+  const res = await apiFetch(`/api/flights/tickets/${encodeURIComponent(bookingId)}/cancel-quote`, {
+    method: "POST",
+    headers: activityHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "The booking partner did not return a cancellation quote. The ticket is unchanged.");
+  return data.quote || {};
+}
+
+export async function cancelTicket(bookingId) {
+  const res = await apiFetch(`/api/flights/tickets/${encodeURIComponent(bookingId)}/cancel`, {
+    method: "POST",
+    headers: activityHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "The ticket was not cancelled. It is still confirmed.");
+  return data.ticket;
 }
 
 export async function suggestFlights(journey) {

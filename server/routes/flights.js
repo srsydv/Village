@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { airportCode, airportsIn } from "../lib/airports.js";
-import { attachSeat, bookFlight, nuiteeConfigured, nuiteeSandbox, prebookFlight, readBooking, searchFlights, verifyFlight } from "../lib/nuitee.js";
-import { saveTicket, ticketsFor } from "../lib/tickets.js";
+import { confirmationPdf } from "../lib/confirmation.js";
+import { attachSeat, bookFlight, cancelBooking, nuiteeConfigured, nuiteeSandbox, prebookFlight, quoteCancellation, readBookingRecord, searchFlights, verifyFlight } from "../lib/nuitee.js";
+import { saveTicket, ticketFor, ticketsFor } from "../lib/tickets.js";
 
 const router = Router();
 
@@ -47,10 +48,14 @@ router.post("/search", async (req, res, next) => {
       return res.status(400).json({ error: "The departure and arrival cities are the same." });
     }
     if (!date) return res.status(400).json({ error: "Choose a travel date that is still ahead." });
+    const returnDate = src.returnDate ? cleanDate(src.returnDate) : "";
+    if (src.returnDate && !returnDate) return res.status(400).json({ error: "Choose a return date that is still ahead." });
+    if (returnDate && returnDate < date) return res.status(400).json({ error: "The return date has to be on or after the departure." });
     const offers = await searchFlights({
       origin,
       destination,
       date,
+      returnDate,
       currency: String(src.currency || "INR").slice(0, 3).toUpperCase() || "INR",
       adults: Math.max(1, Math.min(6, Number(src.adults) || 1)),
     });
@@ -60,6 +65,7 @@ router.post("/search", async (req, res, next) => {
       from: origin,
       to: destination,
       date,
+      returnDate,
       offers,
     });
   } catch (err) {
@@ -157,17 +163,128 @@ router.get("/tickets", async (req, res, next) => {
   }
 });
 
-async function freshTicket(ticket) {
-  if (!ticket.bookingId) return ticket;
+function cancelledStatus(status) {
+  return status === "CANCELLED" || status === "CANCELLED_WITH_CHARGES";
+}
+
+function cancelAccountError(ticket) {
+  const live = !nuiteeSandbox();
+  if (ticket.sandbox && live) {
+    return "This is a test booking from the sandbox. The live account cannot see it, so it cannot be cancelled here.";
+  }
+  if (!ticket.sandbox && !live) {
+    return "This ticket was booked on the live account. The sandbox key cannot see it.";
+  }
+  return "";
+}
+
+function detailAccountError(ticket) {
+  const live = !nuiteeSandbox();
+  if (ticket.sandbox && live) return "This test booking is in the sandbox. The live account cannot load its details.";
+  if (!ticket.sandbox && !live) return "This ticket was booked on the live account. The sandbox key cannot load its details.";
+  return "";
+}
+
+function cancellationRecord(result) {
+  const row = { pending: Boolean(result.pending) };
+  if (result.refund) {
+    row.refundAmount = result.refund.amount;
+    if (result.refund.currency) row.refundCurrency = result.refund.currency;
+  }
+  if (result.fee) {
+    row.feeAmount = result.fee.amount;
+    if (result.fee.currency) row.feeCurrency = result.fee.currency;
+  }
+  if (result.destination) row.destination = result.destination;
+  return row;
+}
+
+router.get("/tickets/:bookingId/confirmation", async (req, res, next) => {
   try {
-    const live = await readBooking(ticket.bookingId);
-    if (!live.bookingRef && !live.status && !live.airlinePnr) return ticket;
-    return saveTicket({
+    const bookingId = String(req.params.bookingId || "");
+    const ticket = ticketFor(ownerOf(req), bookingId);
+    if (!ticket) return res.status(404).json({ error: "That ticket is not on this account." });
+    const blocked = detailAccountError(ticket);
+    if (blocked) return res.status(409).json({ error: blocked });
+    const detail = await readBookingRecord(bookingId);
+    const pdf = await confirmationPdf(detail, { sandbox: Boolean(ticket.sandbox) });
+    const name = `Safar-${detail.bookingRef || detail.airlinePnr || "confirmation"}.pdf`.replace(/[^\w.-]+/g, "-");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
+    res.send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/tickets/:bookingId", async (req, res, next) => {
+  try {
+    const bookingId = String(req.params.bookingId || "");
+    const ticket = ticketFor(ownerOf(req), bookingId);
+    if (!ticket) return res.status(404).json({ error: "That ticket is not on this account." });
+    const blocked = detailAccountError(ticket);
+    if (blocked) return res.json({ sandbox: Boolean(ticket.sandbox), unavailable: blocked });
+    const detail = await readBookingRecord(bookingId);
+    res.json({ sandbox: Boolean(ticket.sandbox), detail });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/tickets/:bookingId/cancel-quote", async (req, res, next) => {
+  try {
+    const bookingId = String(req.params.bookingId || "");
+    const ticket = ticketFor(ownerOf(req), bookingId);
+    if (!ticket) return res.status(404).json({ error: "That ticket is not on this account." });
+    if (cancelledStatus(ticket.status)) return res.status(409).json({ error: "This ticket is already cancelled." });
+    const blocked = cancelAccountError(ticket);
+    if (blocked) return res.status(409).json({ error: blocked });
+    const quote = await quoteCancellation(bookingId);
+    res.json({ quote });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/tickets/:bookingId/cancel", async (req, res, next) => {
+  try {
+    const bookingId = String(req.params.bookingId || "");
+    const ticket = ticketFor(ownerOf(req), bookingId);
+    if (!ticket) return res.status(404).json({ error: "That ticket is not on this account." });
+    if (cancelledStatus(ticket.status)) return res.status(409).json({ error: "This ticket is already cancelled." });
+    const blocked = cancelAccountError(ticket);
+    if (blocked) return res.status(409).json({ error: blocked });
+    const result = await cancelBooking(bookingId);
+    const saved = saveTicket({
       ...ticket,
-      bookingRef: live.bookingRef || ticket.bookingRef,
-      status: live.status || ticket.status,
-      airlinePnr: live.airlinePnr || ticket.airlinePnr,
+      status: result.status || ticket.status,
+      cancellation: cancellationRecord(result),
     });
+    res.json({ ticket: saved });
+  } catch (err) {
+    next(err);
+  }
+});
+
+async function freshTicket(ticket) {
+  if (!ticket.bookingId || detailAccountError(ticket)) return ticket;
+  try {
+    const detail = await readBookingRecord(ticket.bookingId);
+    const next = {
+      ...ticket,
+      bookingRef: detail.bookingRef || ticket.bookingRef,
+      status: detail.status || ticket.status,
+      airlinePnr: detail.airlinePnr || ticket.airlinePnr,
+    };
+    if (cancelledStatus(next.status) && next.cancellation?.pending) {
+      next.cancellation = { ...next.cancellation, pending: false };
+    }
+    const saved = saveTicket(next);
+    return {
+      ...saved,
+      ...(detail.segments?.length ? { segments: detail.segments } : {}),
+      ...(detail.bags?.length ? { bags: detail.bags } : {}),
+    };
   } catch {
     return ticket;
   }

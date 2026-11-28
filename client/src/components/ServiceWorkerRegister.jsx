@@ -4,7 +4,7 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return undefined;
     const native = Boolean(window.Capacitor?.isNativePlatform?.());
-    if (native) {
+    if (import.meta.env.DEV || native) {
       navigator.serviceWorker.getRegistrations?.().then((regs) => {
         regs.forEach((reg) => reg.unregister());
       }).catch(() => {});

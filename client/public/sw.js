@@ -1,52 +1,13 @@
-const CACHE = "safar-v2";
-const PRECACHE = ["/", "/explore", "/plan", "/choose", "/trips", "/ask", "/manifest.webmanifest"];
-
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting()),
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
-  );
-});
-
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  if (req.method !== "GET") return;
-
-  const url = new URL(req.url);
-  if (url.pathname.startsWith("/src/") || url.pathname.startsWith("/@") || url.pathname.startsWith("/node_modules/")) {
-    return;
-  }
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(req).catch(
-        () =>
-          new Response(JSON.stringify({ error: "You are offline. Safar needs a connection to answer." }), {
-            status: 503,
-            headers: { "Content-Type": "application/json" },
-          }),
-      ),
-    );
-    return;
-  }
-
-  event.respondWith(
-    fetch(req)
-      .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(req, copy));
-        return res;
-      })
-      .catch(() => caches.match(req).then((cached) => cached || caches.match("/"))),
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((key) => caches.delete(key)));
+    const windows = await self.clients.matchAll({ type: "window" });
+    await Promise.all(windows.map((client) => client.navigate(client.url)));
+    await self.registration.unregister();
+  })());
 });
